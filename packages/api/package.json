@@ -1,0 +1,30 @@
+{
+  "name": "@rent-stream/api",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@fastify/cors": "^11.2.0",
+    "@rent-stream/domain": "workspace:*",
+    "@rotorsoft/act": "latest",
+    "@rotorsoft/act-pg": "latest",
+    "@trpc/server": "^11.0.0",
+    "fastify": "^5.0.0",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0"
+  }
+}

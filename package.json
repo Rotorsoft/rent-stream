@@ -1,0 +1,21 @@
+{
+  "name": "rent-stream-root",
+  "version": "0.1.0",
+  "description": "RentStream Root",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "pnpm -r build",
+    "test": "vitest run",
+    "lint": "pnpm -r lint",
+    "dev": "concurrently \"pnpm -F @rent-stream/api dev\" \"pnpm -F @rent-stream/web dev\" --names \"API,WEB\" --prefix-colors \"blue,green\""
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "2.1.9",
+    "concurrently": "^9.0.0",
+    "eslint": "^9.0.0",
+    "prettier": "^3.0.0",
+    "typescript": "^5.0.0",
+    "vitest": "^2.0.0"
+  }
+}
