@@ -2,3 +2,27 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+  body {
+    @apply bg-slate-50 text-slate-900 antialiased;
+    background-image: radial-gradient(at 0% 0%, hsla(253,16%,7%,1) 0, transparent 50%), 
+                      radial-gradient(at 50% 0%, hsla(225,39%,30%,1) 0, transparent 50%), 
+                      radial-gradient(at 100% 0%, hsla(339,49%,30%,1) 0, transparent 50%);
+    background-size: 100% 100vh;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    /* Light mode override */
+    background-image: radial-gradient(at 0% 0%, hsla(253,16%,97%,1) 0, transparent 50%), 
+                      radial-gradient(at 50% 0%, hsla(225,39%,95%,1) 0, transparent 50%), 
+                      radial-gradient(at 100% 0%, hsla(339,49%,95%,1) 0, transparent 50%);
+  }
+}
+
+@layer utilities {
+  .glass {
+    @apply bg-white/70 backdrop-blur-lg border border-white/20 shadow-lg;
+  }
+  .glass-dark {
+    @apply bg-slate-900/70 backdrop-blur-lg border border-slate-700/50 shadow-lg;
+  }
+}

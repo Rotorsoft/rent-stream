@@ -2,6 +2,24 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { trpc } from "../utils/trpc";
 import { ItemCondition } from "@rent-stream/domain/schemas";
+import { motion } from "framer-motion";
+import { Plus, Package, Search, AlertCircle, CheckCircle2, Clock } from "lucide-react";
+import clsx from "clsx";
+
+const container = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1
+    }
+  }
+};
+
+const itemAnim = {
+  hidden: { opacity: 0, y: 20 },
+  show: { opacity: 1, y: 0 }
+};
 
 export function Inventory() {
   const [newItemName, setNewItemName] = useState("");
@@ -30,70 +48,140 @@ export function Inventory() {
     });
   };
 
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "Available": return "bg-green-100 text-green-700 border-green-200";
+      case "Rented": return "bg-brand-100 text-brand-700 border-brand-200";
+      case "Maintenance": return "bg-orange-100 text-orange-700 border-orange-200";
+      case "Quarantined": return "bg-red-100 text-red-700 border-red-200";
+      default: return "bg-slate-100 text-slate-700 border-slate-200";
+    }
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case "Available": return <CheckCircle2 size={14} />;
+      case "Rented": return <Clock size={14} />;
+      case "Maintenance": return <AlertCircle size={14} />;
+      default: return <Package size={14} />;
+    }
+  };
+
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-semibold text-gray-900">Inventory</h1>
+    <div className="space-y-8">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Inventory</h1>
+          <p className="text-slate-500 mt-1">Manage your rental assets efficiently.</p>
+        </div>
+        
+        <div className="flex gap-2 bg-white p-1.5 rounded-xl shadow-sm border border-slate-200">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+            <input 
+              type="text" 
+              placeholder="Search items..." 
+              className="pl-10 pr-4 py-2 bg-transparent border-none focus:ring-0 text-sm w-full md:w-64"
+            />
+          </div>
+        </div>
       </div>
 
-      {/* Create New Item */}
-      <div className="bg-white p-4 rounded-lg shadow sm:flex sm:items-center sm:gap-4">
-        <input
-          type="text"
-          value={newItemName}
-          onChange={(e) => setNewItemName(e.target.value)}
-          placeholder="New Item Name"
-          className="flex-1 p-2 border rounded-md"
-        />
-        <button
-          onClick={handleCreate}
-          disabled={createItem.isPending || !newItemName}
-          className="mt-2 sm:mt-0 w-full sm:w-auto bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50"
+      {/* Create New Item Section */}
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="glass p-6 rounded-2xl"
+      >
+        <div className="flex flex-col sm:flex-row gap-4 items-end">
+          <div className="flex-1 w-full">
+            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Add New Item</label>
+            <input
+              type="text"
+              value={newItemName}
+              onChange={(e) => setNewItemName(e.target.value)}
+              placeholder="e.g. Sony A7III Camera Kit"
+              className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-brand-500 focus:ring-2 focus:ring-brand-200 transition-all outline-none"
+            />
+          </div>
+          <button
+            onClick={handleCreate}
+            disabled={createItem.isPending || !newItemName}
+            className="w-full sm:w-auto px-6 py-3 bg-brand-600 hover:bg-brand-700 active:bg-brand-800 text-white font-medium rounded-xl transition-all shadow-lg shadow-brand-500/30 flex items-center justify-center gap-2 disabled:opacity-50 disabled:shadow-none"
+          >
+            {createItem.isPending ? (
+              <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            ) : (
+              <>
+                <Plus size={18} />
+                <span>Add Item</span>
+              </>
+            )}
+          </button>
+        </div>
+      </motion.div>
+
+      {/* Item Grid */}
+      {isLoading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {[1, 2, 3, 4].map((n) => (
+            <div key={n} className="h-48 bg-slate-100 rounded-2xl animate-pulse" />
+          ))}
+        </div>
+      ) : items?.length === 0 ? (
+        <div className="text-center py-20 bg-white/50 rounded-3xl border border-dashed border-slate-300">
+          <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Package className="text-slate-400" size={32} />
+          </div>
+          <h3 className="text-lg font-medium text-slate-900">No items yet</h3>
+          <p className="text-slate-500">Create your first item to get started.</p>
+        </div>
+      ) : (
+        <motion.div 
+          variants={container}
+          initial="hidden"
+          animate="show"
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
         >
-          {createItem.isPending ? "Creating..." : "Add Item"}
-        </button>
-      </div>
-
-      {/* Item List */}
-      <div className="bg-white shadow overflow-hidden sm:rounded-md">
-        {isLoading ? (
-          <div className="p-4 text-center text-gray-500">Loading...</div>
-        ) : items?.length === 0 ? (
-          <div className="p-4 text-center text-gray-500">No items found.</div>
-        ) : (
-          <ul className="divide-y divide-gray-200">
-            {items?.map((item: any) => (
-              <li key={item.stream}>
-                <Link to={`/items/${item.stream}`} className="block hover:bg-gray-50">
-                  <div className="px-4 py-4 sm:px-6">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-medium text-blue-600 truncate">{item.name}</p>
-                      <div className="ml-2 flex-shrink-0 flex">
-                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                          ${item.status === "Available" ? "bg-green-100 text-green-800" : 
-                            item.status === "Rented" ? "bg-indigo-100 text-indigo-800" : 
-                            "bg-gray-100 text-gray-800"}`}>
-                          {item.status}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="mt-2 sm:flex sm:justify-between">
-                      <div className="sm:flex">
-                        <p className="flex items-center text-sm text-gray-500">
-                          {item.condition}
-                        </p>
-                      </div>
-                      <div className="mt-2 flex items-center text-sm text-gray-500 sm:mt-0">
-                        <p>ID: {item.stream}</p>
-                      </div>
+          {items?.map((item: any) => (
+            <motion.div key={item.stream} variants={itemAnim}>
+              <Link to={`/items/${item.stream}`} className="block h-full">
+                <div className="group h-full bg-white hover:bg-white/80 border border-slate-100 hover:border-brand-200 p-5 rounded-2xl shadow-sm hover:shadow-xl hover:shadow-brand-500/10 transition-all duration-300 relative overflow-hidden">
+                  <div className="absolute top-0 right-0 p-5 opacity-5 group-hover:opacity-10 transition-opacity transform group-hover:scale-110 duration-500">
+                    <Package size={80} />
+                  </div>
+                  
+                  <div className="flex justify-between items-start mb-4">
+                    <div className={clsx("px-2.5 py-1 rounded-lg text-xs font-semibold border flex items-center gap-1.5", getStatusColor(item.status))}>
+                      {getStatusIcon(item.status)}
+                      {item.status}
                     </div>
                   </div>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+
+                  <h3 className="text-lg font-bold text-slate-800 mb-1 line-clamp-1 group-hover:text-brand-600 transition-colors">
+                    {item.name}
+                  </h3>
+                  
+                  <div className="flex items-center gap-2 text-sm text-slate-500 mb-4">
+                    <span className="font-mono text-xs bg-slate-100 px-1.5 py-0.5 rounded text-slate-600">
+                      {item.stream.split('-').pop()} 
+                    </span>
+                    <span>•</span>
+                    <span>{item.condition}</span>
+                  </div>
+
+                  <div className="mt-auto pt-4 border-t border-slate-50 flex justify-between items-center text-xs font-medium text-slate-400 group-hover:text-brand-500 transition-colors">
+                    <span>View Details</span>
+                    <span className="opacity-0 group-hover:opacity-100 transition-all transform translate-x-[-10px] group-hover:translate-x-0">
+                      &rarr;
+                    </span>
+                  </div>
+                </div>
+              </Link>
+            </motion.div>
+          ))}
+        </motion.div>
+      )}
     </div>
   );
 }
