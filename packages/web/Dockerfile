@@ -1,48 +1,29 @@
-FROM node:20-slim AS base
+FROM node:20-slim AS build
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 RUN corepack enable
-
-FROM base AS build
 WORKDIR /app
 
-# Copy workspace files
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY packages/domain/package.json ./packages/domain/
 COPY packages/api/package.json ./packages/api/
 COPY packages/web/package.json ./packages/web/
 
-# Install dependencies
 RUN pnpm install --frozen-lockfile
 
-# Copy source files
 COPY packages/domain ./packages/domain
 COPY packages/api ./packages/api
 COPY packages/web ./packages/web
 
-# Build (Vite needs the API_URL at build time if not using runtime env injection)
 ARG VITE_API_URL
 ENV VITE_API_URL=$VITE_API_URL
 
-RUN pnpm -F @rent-stream/domain build
-RUN pnpm -F @rent-stream/api build
-RUN pnpm -F @rent-stream/web build
+RUN pnpm -F @rent-stream/domain build && \
+    pnpm -F @rent-stream/api build && \
+    pnpm -F @rent-stream/web build
 
-FROM nginx:stable-alpine AS runtime
-
-# Copy built assets
+FROM nginx:alpine
 COPY --from=build /app/packages/web/dist /usr/share/nginx/html
-
-# Custom nginx config to support SPA routing
-RUN printf "server {\n\
-    listen 80;\n\
-    location / {\n\
-        root /usr/share/nginx/html;\n\
-        index index.html index.htm;\n\
-        try_files \$uri \$uri/ /index.html;\n\
-    }\n\
-}" > /etc/nginx/conf.d/default.conf
-
+RUN echo 'server { listen 80; location / { root /usr/share/nginx/html; try_files $uri /index.html; } }' > /etc/nginx/conf.d/default.conf
 EXPOSE 80
-
 CMD ["nginx", "-g", "daemon off;"]
