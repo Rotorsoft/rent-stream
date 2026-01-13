@@ -196,8 +196,9 @@ export const start = async () => {
   try {
     // Initial drain to catch up projections
     await app.drain();
-    await server.listen({ port: 3000 });
-    console.log("Server listening on http://localhost:3000");
+    const port = Number(process.env.PORT) || 3000;
+    await server.listen({ port, host: "0.0.0.0" });
+    console.log(`Server listening on http://0.0.0.0:${port}`);
   } catch (err) {
     server.log.error(err);
     process.exit(1);
