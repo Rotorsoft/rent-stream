@@ -13,7 +13,7 @@ COPY packages/api/package.json ./packages/api/
 COPY packages/web/package.json ./packages/web/
 
 # Install dependencies
-RUN --mount=type=cache,id=cacheKey=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
+RUN pnpm install --frozen-lockfile
 
 # Copy source files
 COPY packages/domain ./packages/domain
