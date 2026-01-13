@@ -1,5 +1,5 @@
-import { createTRPCReact } from "@trpc/react-query";
+import { createTRPCReact, type CreateTRPCReact } from "@trpc/react-query";
 import type { AppRouter } from "@rent-stream/api";
 
-export const trpc = createTRPCReact<AppRouter>();
+export const trpc: CreateTRPCReact<AppRouter, any> = createTRPCReact<AppRouter>();
 
