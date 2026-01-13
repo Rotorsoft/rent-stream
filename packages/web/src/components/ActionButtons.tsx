@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { trpc } from "../utils/trpc";
 import { ItemStatus, ItemCondition } from "@rent-stream/domain/schemas";
-import { Play, RotateCcw, AlertOctagon, ClipboardCheck, Wrench, CheckCircle, Trash2 } from "lucide-react";
+import { Play, RotateCcw, OctagonAlert, ClipboardCheck, Wrench, CircleCheck, Trash2, Save, Send, Calendar, Archive } from "lucide-react";
 import clsx from "clsx";
 
 type ActionType = "inspect" | "damage" | "maintenance" | "complete-maintenance" | "retire" | null;
@@ -99,14 +99,14 @@ export function ActionButtons({ item, refetch }: { item: any; refetch: () => voi
         {item.status === ItemStatus.Available && (
           <button onClick={handleRent} disabled={rentItem.isPending} className={clsx(btnBase, btnPrimary, "w-full text-base")}>
             <Play size={18} fill="currentColor" />
-            {rentItem.isPending ? "Processing..." : "Rent Item"}
+            <span>{rentItem.isPending ? "Processing..." : "Rent Item"}</span>
           </button>
         )}
 
         {(!!item.currentRenterId) && (
           <button onClick={handleReturn} disabled={returnItem.isPending} className={clsx(btnBase, btnPrimary, "w-full text-base")}>
             <RotateCcw size={18} />
-            {returnItem.isPending ? "Processing..." : "Return Item"}
+            <span>{returnItem.isPending ? "Processing..." : "Return Item"}</span>
           </button>
         )}
       </div>
@@ -119,14 +119,14 @@ export function ActionButtons({ item, refetch }: { item: any; refetch: () => voi
             onClick={() => setActiveAction(activeAction === 'inspect' ? null : 'inspect')}
             className={clsx(btnBase, btnSecondary, activeAction === 'inspect' && "ring-2 ring-brand-500 border-transparent")}
           >
-            <ClipboardCheck size={16} /> Inspect
+            <ClipboardCheck size={16} /> <span>Inspect</span>
           </button>
           
           <button 
             onClick={() => setActiveAction(activeAction === 'damage' ? null : 'damage')}
             className={clsx(btnBase, btnSecondary, activeAction === 'damage' && "ring-2 ring-red-500 border-transparent")}
           >
-            <AlertOctagon size={16} /> Report
+            <OctagonAlert size={16} /> <span>Report</span>
           </button>
 
           {item.status !== ItemStatus.Maintenance ? (
@@ -134,14 +134,14 @@ export function ActionButtons({ item, refetch }: { item: any; refetch: () => voi
              onClick={() => setActiveAction(activeAction === 'maintenance' ? null : 'maintenance')}
              className={clsx(btnBase, btnSecondary, activeAction === 'maintenance' && "ring-2 ring-orange-500 border-transparent")}
            >
-             <Wrench size={16} /> Maint.
+             <Wrench size={16} /> <span>Maintain</span>
            </button>
           ) : (
             <button 
             onClick={() => setActiveAction(activeAction === 'complete-maintenance' ? null : 'complete-maintenance')}
             className={clsx(btnBase, "bg-green-50 text-green-700 border border-green-200 hover:bg-green-100", activeAction === 'complete-maintenance' && "ring-2 ring-green-500 border-transparent")}
           >
-            <CheckCircle size={16} /> Complete
+            <CircleCheck size={16} /> <span>Complete</span>
           </button>
           )}
 
@@ -149,7 +149,7 @@ export function ActionButtons({ item, refetch }: { item: any; refetch: () => voi
             onClick={() => setActiveAction(activeAction === 'retire' ? null : 'retire')}
             className={clsx(btnBase, btnDanger, activeAction === 'retire' && "ring-2 ring-red-500 border-transparent")}
           >
-            <Trash2 size={16} /> Retire
+            <Trash2 size={16} /> <span>Retire</span>
           </button>
         </div>
 
@@ -177,7 +177,8 @@ export function ActionButtons({ item, refetch }: { item: any; refetch: () => voi
                   className="w-full p-2.5 border border-slate-300 rounded-lg h-20 resize-none focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none"
                 />
                 <button onClick={handleInspect} disabled={inspectItem.isPending} className={clsx(btnBase, btnPrimary, "w-full")}>
-                  {inspectItem.isPending ? "Saving..." : "Save Inspection"}
+                  {inspectItem.isPending ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Save size={16} />}
+                  <span>{inspectItem.isPending ? "Saving..." : "Save Inspection"}</span>
                 </button>
               </div>
             )}
@@ -185,7 +186,7 @@ export function ActionButtons({ item, refetch }: { item: any; refetch: () => voi
             {/* Report Damage Form */}
             {activeAction === 'damage' && (
               <div className="space-y-3">
-                <h4 className="font-medium text-red-900 flex items-center gap-2"><AlertOctagon size={16}/> Report Damage</h4>
+                <h4 className="font-medium text-red-900 flex items-center gap-2"><OctagonAlert size={16}/> Report Damage</h4>
                 <textarea
                   value={damageDescription}
                   onChange={(e) => setDamageDescription(e.target.value)}
@@ -193,7 +194,8 @@ export function ActionButtons({ item, refetch }: { item: any; refetch: () => voi
                   className="w-full p-2.5 border border-slate-300 rounded-lg h-24 resize-none focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none"
                 />
                 <button onClick={handleReportDamage} disabled={reportDamage.isPending || !damageDescription} className={clsx(btnBase, "bg-red-600 text-white hover:bg-red-700 w-full")}>
-                  {reportDamage.isPending ? "Reporting..." : "Submit Report"}
+                  {reportDamage.isPending ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Send size={16} />}
+                  <span>{reportDamage.isPending ? "Reporting..." : "Submit Report"}</span>
                 </button>
               </div>
             )}
@@ -216,7 +218,8 @@ export function ActionButtons({ item, refetch }: { item: any; refetch: () => voi
                   className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none"
                 />
                 <button onClick={handleScheduleMaint} disabled={scheduleMaintenance.isPending || !maintReason} className={clsx(btnBase, "bg-orange-600 text-white hover:bg-orange-700 w-full")}>
-                  {scheduleMaintenance.isPending ? "Scheduling..." : "Schedule Maintenance"}
+                  {scheduleMaintenance.isPending ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Calendar size={16} />}
+                  <span>{scheduleMaintenance.isPending ? "Scheduling..." : "Schedule Maintenance"}</span>
                 </button>
               </div>
             )}
@@ -224,7 +227,7 @@ export function ActionButtons({ item, refetch }: { item: any; refetch: () => voi
             {/* Complete Maintenance Form */}
             {activeAction === 'complete-maintenance' && (
               <div className="space-y-3">
-                <h4 className="font-medium text-green-900 flex items-center gap-2"><CheckCircle size={16}/> Complete Maintenance</h4>
+                <h4 className="font-medium text-green-900 flex items-center gap-2"><CircleCheck size={16}/> Complete Maintenance</h4>
                 <textarea
                   value={maintNotes}
                   onChange={(e) => setMaintNotes(e.target.value)}
@@ -232,7 +235,8 @@ export function ActionButtons({ item, refetch }: { item: any; refetch: () => voi
                   className="w-full p-2.5 border border-slate-300 rounded-lg h-24 resize-none focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none"
                 />
                 <button onClick={handleCompleteMaint} disabled={completeMaintenance.isPending} className={clsx(btnBase, "bg-green-600 text-white hover:bg-green-700 w-full")}>
-                  {completeMaintenance.isPending ? "Completing..." : "Complete & Return"}
+                  {completeMaintenance.isPending ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <CircleCheck size={16} />}
+                  <span>{completeMaintenance.isPending ? "Completing..." : "Complete & Return"}</span>
                 </button>
               </div>
             )}
@@ -251,7 +255,8 @@ export function ActionButtons({ item, refetch }: { item: any; refetch: () => voi
                   className="w-full p-2.5 border border-slate-300 rounded-lg h-20 resize-none focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none"
                 />
                 <button onClick={handleRetire} disabled={retireItem.isPending || !retireReason} className={clsx(btnBase, "bg-red-700 text-white hover:bg-red-800 w-full")}>
-                  {retireItem.isPending ? "Retiring..." : "Confirm Retirement"}
+                  {retireItem.isPending ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Archive size={16} />}
+                  <span>{retireItem.isPending ? "Retiring..." : "Confirm Retirement"}</span>
                 </button>
               </div>
             )}

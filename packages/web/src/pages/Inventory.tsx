@@ -2,41 +2,33 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { trpc } from "../utils/trpc";
 import { ItemCondition } from "@rent-stream/domain/schemas";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Package, Search, AlertCircle, CheckCircle2, Clock } from "lucide-react";
 import clsx from "clsx";
 
-const container = {
-  hidden: { opacity: 0 },
-  show: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.1
-    }
-  }
-};
-
 const itemAnim = {
-  hidden: { opacity: 0, y: 20 },
-  show: { opacity: 1, y: 0 }
+  initial: { opacity: 0, y: 20 },
+  animate: { opacity: 1, y: 0 },
+  exit: { opacity: 0, y: -20 }
 };
 
 export function Inventory() {
   const [newItemName, setNewItemName] = useState("");
-  const utils = trpc.useUtils();
 
-  const { data: items, isLoading } = trpc.listItems.useQuery();
+  const { data: items, isLoading, refetch } = trpc.listItems.useQuery(undefined, {
+    refetchOnWindowFocus: false,
+  });
 
   trpc.onInventoryUpdate.useSubscription(undefined, {
     onData: () => {
-      utils.listItems.invalidate();
+      refetch();
     },
   });
 
   const createItem = trpc.createItem.useMutation({
-    onSuccess: () => {
+    onSuccess: async () => {
       setNewItemName("");
-      utils.listItems.invalidate();
+      await refetch();
     },
   });
 
@@ -128,59 +120,70 @@ export function Inventory() {
             <div key={n} className="h-48 bg-slate-100 rounded-2xl animate-pulse" />
           ))}
         </div>
-      ) : items?.length === 0 ? (
-        <div className="text-center py-20 bg-white/50 rounded-3xl border border-dashed border-slate-300">
-          <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Package className="text-slate-400" size={32} />
-          </div>
-          <h3 className="text-lg font-medium text-slate-900">No items yet</h3>
-          <p className="text-slate-500">Create your first item to get started.</p>
-        </div>
       ) : (
-        <motion.div 
-          variants={container}
-          initial="hidden"
-          animate="show"
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
-        >
-          {items?.map((item: any) => (
-            <motion.div key={item.stream} variants={itemAnim}>
-              <Link to={`/items/${item.stream}`} className="block h-full">
-                <div className="group h-full bg-white hover:bg-white/80 border border-slate-100 hover:border-brand-200 p-5 rounded-2xl shadow-sm hover:shadow-xl hover:shadow-brand-500/10 transition-all duration-300 relative overflow-hidden">
-                  <div className="absolute top-0 right-0 p-5 opacity-5 group-hover:opacity-10 transition-opacity transform group-hover:scale-110 duration-500">
-                    <Package size={80} />
-                  </div>
-                  
-                  <div className="flex justify-between items-start mb-4">
-                    <div className={clsx("px-2.5 py-1 rounded-lg text-xs font-semibold border flex items-center gap-1.5", getStatusColor(item.status))}>
-                      {getStatusIcon(item.status)}
-                      {item.status}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <AnimatePresence mode="popLayout">
+            {items?.length === 0 && (
+              <motion.div
+                key="empty-state"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="col-span-full text-center py-20 bg-white/50 rounded-3xl border border-dashed border-slate-300"
+              >
+                <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Package className="text-slate-400" size={32} />
+                </div>
+                <h3 className="text-lg font-medium text-slate-900">No items yet</h3>
+                <p className="text-slate-500">Create your first item to get started.</p>
+              </motion.div>
+            )}
+            {items?.map((item: any) => (
+              <motion.div
+                key={item.stream}
+                layout
+                initial={itemAnim.initial}
+                animate={itemAnim.animate}
+                exit={itemAnim.exit}
+                transition={{ duration: 0.2 }}
+              >
+                <Link to={`/items/${item.stream}`} className="block h-full">
+                  <div className="group h-full bg-white hover:bg-white/80 border border-slate-100 hover:border-brand-200 p-5 rounded-2xl shadow-sm hover:shadow-xl hover:shadow-brand-500/10 transition-all duration-300 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 p-5 opacity-5 group-hover:opacity-10 transition-opacity transform group-hover:scale-110 duration-500">
+                      <Package size={80} />
+                    </div>
+
+                    <div className="flex justify-between items-start mb-4">
+                      <div className={clsx("px-2.5 py-1 rounded-lg text-xs font-semibold border flex items-center gap-1.5", getStatusColor(item.status))}>
+                        {getStatusIcon(item.status)}
+                        {item.status}
+                      </div>
+                    </div>
+
+                    <h3 className="text-lg font-bold text-slate-800 mb-1 line-clamp-1 group-hover:text-brand-600 transition-colors">
+                      {item.name}
+                    </h3>
+
+                    <div className="flex items-center gap-2 text-sm text-slate-500 mb-4">
+                      <span className="font-mono text-xs bg-slate-100 px-1.5 py-0.5 rounded text-slate-600">
+                        {item.stream.split('-').pop()}
+                      </span>
+                      <span>•</span>
+                      <span>{item.condition}</span>
+                    </div>
+
+                    <div className="mt-auto pt-4 border-t border-slate-50 flex justify-between items-center text-xs font-medium text-slate-400 group-hover:text-brand-500 transition-colors">
+                      <span>View Details</span>
+                      <span className="opacity-0 group-hover:opacity-100 transition-all transform translate-x-[-10px] group-hover:translate-x-0">
+                        &rarr;
+                      </span>
                     </div>
                   </div>
-
-                  <h3 className="text-lg font-bold text-slate-800 mb-1 line-clamp-1 group-hover:text-brand-600 transition-colors">
-                    {item.name}
-                  </h3>
-                  
-                  <div className="flex items-center gap-2 text-sm text-slate-500 mb-4">
-                    <span className="font-mono text-xs bg-slate-100 px-1.5 py-0.5 rounded text-slate-600">
-                      {item.stream.split('-').pop()} 
-                    </span>
-                    <span>•</span>
-                    <span>{item.condition}</span>
-                  </div>
-
-                  <div className="mt-auto pt-4 border-t border-slate-50 flex justify-between items-center text-xs font-medium text-slate-400 group-hover:text-brand-500 transition-colors">
-                    <span>View Details</span>
-                    <span className="opacity-0 group-hover:opacity-100 transition-all transform translate-x-[-10px] group-hover:translate-x-0">
-                      &rarr;
-                    </span>
-                  </div>
-                </div>
-              </Link>
-            </motion.div>
-          ))}
-        </motion.div>
+                </Link>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </div>
       )}
     </div>
   );

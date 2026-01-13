@@ -58,7 +58,7 @@ export function Timeline({ itemId }: { itemId: string }) {
                   <div className="flex justify-between space-x-4">
                     <div>
                       <p className="text-sm font-medium text-slate-900">
-                        {event.name.replace(/([A-Z])/g, ' $1').trim()} 
+                        {(event.name || 'Unknown Event').replace(/([A-Z])/g, ' $1').trim()} 
                       </p>
                     </div>
                     <div className="text-right text-sm whitespace-nowrap text-slate-500">

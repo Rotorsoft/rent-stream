@@ -18,10 +18,11 @@ export const app = builder
   .build();
 
 // Trigger drain on commit to update projections
-app.on("committed", async () => {
+app.on("committed", () => {
   if (process.env.NODE_ENV !== "test") {
-    await app.drain();
-    ee.emit("inventoryUpdated");
+    app.drain()
+      .then(() => ee.emit("inventoryUpdated"))
+      .catch(() => ee.emit("inventoryUpdated"));
   }
 });
 
