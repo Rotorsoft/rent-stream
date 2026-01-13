@@ -1,0 +1,22 @@
+{
+  "$schema": "https://railway.app/railway.schema.json",
+  "services": {
+    "api": {
+      "source": {
+        "root": "/",
+        "dockerfile": "packages/api/Dockerfile"
+      }
+    },
+    "web": {
+      "source": {
+        "root": "/",
+        "dockerfile": "packages/web/Dockerfile"
+      },
+      "build": {
+        "buildArgs": {
+          "VITE_API_URL": "${{VITE_API_URL}}"
+        }
+      }
+    }
+  }
+}
