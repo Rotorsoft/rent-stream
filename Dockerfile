@@ -23,7 +23,7 @@ RUN pnpm -F @rent-stream/domain build
 RUN pnpm -F @rent-stream/api build
 
 # Deploy the API package to a standalone directory
-RUN pnpm --filter=@rent-stream/api --prod deploy /app/out
+RUN pnpm --filter=@rent-stream/api --prod deploy /app/out --legacy
 
 FROM base AS runtime
 WORKDIR /app
