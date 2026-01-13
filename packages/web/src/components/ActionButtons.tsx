@@ -6,6 +6,7 @@ import clsx from "clsx";
 
 type ActionType = "inspect" | "damage" | "maintenance" | "complete-maintenance" | "retire" | null;
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function ActionButtons({ item, refetch }: { item: any; refetch: () => void }) {
   const [activeAction, setActiveAction] = useState<ActionType>(null);
   

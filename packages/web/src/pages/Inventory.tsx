@@ -138,6 +138,7 @@ export function Inventory() {
                 <p className="text-slate-500">Create your first item to get started.</p>
               </motion.div>
             )}
+            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
             {items?.map((item: any) => (
               <motion.div
                 key={item.stream}

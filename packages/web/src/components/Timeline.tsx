@@ -37,6 +37,7 @@ export function Timeline({ itemId }: { itemId: string }) {
   return (
     <div className="flow-root">
       <ul className="-mb-8">
+        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
         {history.map((event: any, eventIdx: number) => (
           <motion.li 
             key={event.id}
