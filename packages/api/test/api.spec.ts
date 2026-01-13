@@ -20,7 +20,7 @@ describe("API Router", () => {
     });
 
     expect(result).toBeDefined();
-    expect(result[0].event.stream).toBeDefined();
+    expect(result.id).toBeDefined();
     
     await app.correlate();
     await app.drain();
@@ -37,7 +37,7 @@ describe("API Router", () => {
       serialNumber: "SN-LC",
       condition: ItemCondition.New,
     });
-    const itemId = createRes[0].event.stream;
+    const itemId = createRes.id;
 
     // 2. Rent
     await caller.rentItem({
@@ -99,7 +99,7 @@ describe("API Router", () => {
       serialNumber: "SN-NR",
       condition: ItemCondition.New,
     });
-    const itemId = createRes[0].event.stream;
+    const itemId = createRes.id;
 
     await expect(caller.returnItem({ itemId })).rejects.toThrow("Item must be currently rented");
   });
@@ -110,7 +110,7 @@ describe("API Router", () => {
       serialNumber: "SN-TBR",
       condition: ItemCondition.New,
     });
-    const itemId = createRes[0].event.stream;
+    const itemId = createRes.id;
 
     await caller.retireItem({ itemId, reason: "End of life" });
 

@@ -18,8 +18,8 @@ export const router = t.router({
     .mutation(async ({ input }) => {
       const actor = { id: "admin-1", name: "Admin" };
       const stream = `item-${Date.now()}`;
-      const result = await app.do("CreateItem", { stream, actor }, input);
-      return result;
+      await app.do("CreateItem", { stream, actor }, input);
+      return { success: true, id: stream };
     }),
 
   rentItem: t.procedure
@@ -27,16 +27,16 @@ export const router = t.router({
     .mutation(async ({ input }) => {
       const { itemId, ...payload } = input;
       const actor = { id: "user-1", name: "Alice" };
-      const result = await app.do("RentItem", { stream: itemId, actor }, payload);
-      return result;
+      await app.do("RentItem", { stream: itemId, actor }, payload);
+      return { success: true };
     }),
 
   returnItem: t.procedure
     .input(z.object({ itemId: z.string() }))
     .mutation(async ({ input }) => {
       const actor = { id: "user-1", name: "Alice" }; // The renter returning it
-      const result = await app.do("ReturnItem", { stream: input.itemId, actor }, {});
-      return result;
+      await app.do("ReturnItem", { stream: input.itemId, actor }, {});
+      return { success: true };
     }),
 
   reportDamage: t.procedure
@@ -44,8 +44,8 @@ export const router = t.router({
     .mutation(async ({ input }) => {
       const { itemId, ...payload } = input;
       const actor = { id: "staff-1", name: "Bob" }; // Staff reporting damage
-      const result = await app.do("ReportDamage", { stream: itemId, actor }, payload);
-      return result;
+      await app.do("ReportDamage", { stream: itemId, actor }, payload);
+      return { success: true };
     }),
 
   inspectItem: t.procedure
@@ -53,8 +53,8 @@ export const router = t.router({
     .mutation(async ({ input }) => {
       const { itemId, ...payload } = input;
       const actor = { id: "staff-1", name: "Bob" };
-      const result = await app.do("InspectItem", { stream: itemId, actor }, payload);
-      return result;
+      await app.do("InspectItem", { stream: itemId, actor }, payload);
+      return { success: true };
     }),
 
   scheduleMaintenance: t.procedure
@@ -62,8 +62,8 @@ export const router = t.router({
     .mutation(async ({ input }) => {
       const { itemId, ...payload } = input;
       const actor = { id: "staff-1", name: "Bob" };
-      const result = await app.do("ScheduleMaintenance", { stream: itemId, actor }, payload);
-      return result;
+      await app.do("ScheduleMaintenance", { stream: itemId, actor }, payload);
+      return { success: true };
     }),
 
   completeMaintenance: t.procedure
@@ -71,8 +71,8 @@ export const router = t.router({
     .mutation(async ({ input }) => {
       const { itemId, ...payload } = input;
       const actor = { id: "staff-1", name: "Bob" };
-      const result = await app.do("CompleteMaintenance", { stream: itemId, actor }, payload);
-      return result;
+      await app.do("CompleteMaintenance", { stream: itemId, actor }, payload);
+      return { success: true };
     }),
 
   retireItem: t.procedure
@@ -80,8 +80,8 @@ export const router = t.router({
     .mutation(async ({ input }) => {
       const { itemId, ...payload } = input;
       const actor = { id: "admin-1", name: "Admin" };
-      const result = await app.do("RetireItem", { stream: itemId, actor }, payload);
-      return result;
+      await app.do("RetireItem", { stream: itemId, actor }, payload);
+      return { success: true };
     }),
 
   // --- Queries ---
@@ -89,7 +89,8 @@ export const router = t.router({
   getItem: t.procedure
     .input(z.string())
     .query(async ({ input }) => {
-      return await app.load(RentalItem, input);
+      const snapshot = await app.load(RentalItem, input);
+      return { state: snapshot.state };
     }),
 
   // List all items (Read Model)
@@ -104,7 +105,12 @@ export const router = t.router({
     .query(async ({ input }) => {
       // Using query_array to fetch events for this stream
       const events = await app.query_array({ stream: input });
-      return events;
+      return events.map((e: any) => ({
+        id: e.meta.id,
+        name: e.type,
+        created: e.meta.createdAt || new Date().toISOString(), // Fallback if missing
+        data: e.data || {}
+      }));
     }),
 
   // --- Subscriptions ---

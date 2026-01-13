@@ -11,11 +11,11 @@
     "dev": "concurrently \"pnpm -F @rent-stream/api dev\" \"pnpm -F @rent-stream/web dev\" --names \"API,WEB\" --prefix-colors \"blue,green\""
   },
   "devDependencies": {
-    "@vitest/coverage-v8": "2.1.9",
-    "concurrently": "^9.0.0",
-    "eslint": "^9.0.0",
-    "prettier": "^3.0.0",
-    "typescript": "^5.0.0",
-    "vitest": "^2.0.0"
+    "@vitest/coverage-v8": "4.0.17",
+    "concurrently": "^9.2.1",
+    "eslint": "^9.39.2",
+    "prettier": "^3.7.4",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.17"
   }
 }

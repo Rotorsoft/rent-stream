@@ -5,9 +5,14 @@
     "moduleResolution": "NodeNext",
     "declaration": true,
     "outDir": "dist",
+    "rootDir": "src",
+    "composite": true,
+    "incremental": true,
     "strict": true,
     "esModuleInterop": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "tsBuildInfoFile": "./dist/.tsbuildinfo"
   },
-  "include": ["src/**/*"]
+  "include": ["src/**/*"],
+  "exclude": ["test", "dist", "coverage"]
 }

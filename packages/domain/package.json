@@ -4,14 +4,14 @@
   "description": "RentStream Domain",
   "type": "module",
   "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "types": "src/index.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
+      "types": "./src/index.ts",
       "import": "./dist/index.js"
     },
     "./schemas": {
-      "types": "./dist/schemas/index.d.ts",
+      "types": "./src/schemas/index.ts",
       "import": "./dist/schemas/index.js"
     }
   },
@@ -20,11 +20,11 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@rotorsoft/act": "^0.6.24",
-    "zod": "catalog:" 
+    "@rotorsoft/act": "^0.6.29",
+    "zod": "catalog:"
   },
   "devDependencies": {
-    "typescript": "^5.0.0",
-    "vitest": "^2.0.0"
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.17"
   }
 }
