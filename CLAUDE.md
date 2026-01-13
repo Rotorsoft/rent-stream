@@ -106,3 +106,12 @@ expect(state.status).toBe(ItemStatus.Available);
 Test files:
 - `packages/domain/test/rental-item.spec.ts` - State machine transitions and invariants
 - `packages/api/test/api.spec.ts` - tRPC router operations
+
+## CI/CD
+
+- **CI**: `.github/workflows/ci.yml` - Runs lint, build, test on push/PR
+- **Deploy**: `.github/workflows/deploy.yml` - Deploys web to GitHub Pages on push to master/main
+
+### Environment Variables
+
+Set `VITE_API_URL` secret in GitHub repository settings to point to the Railway API URL for production builds.
