@@ -1,6 +1,8 @@
 packages:
   - packages/*
 
+inject-workspace-packages: true
+
 catalog:
   zod: ^4.3.5
 

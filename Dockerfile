@@ -12,7 +12,7 @@ COPY packages/domain/package.json ./packages/domain/
 COPY packages/api/package.json ./packages/api/
 
 # Install dependencies
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --filter @rent-stream/api... --frozen-lockfile
 
 # Copy source files
 COPY packages/domain ./packages/domain
