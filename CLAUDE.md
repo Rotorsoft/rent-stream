@@ -6,8 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 # Development
-pnpm dev                              # Run server with hot reload (serves web + API at port 3000)
-pnpm -F @rent-stream/app dev:vite     # Vite dev server only (for frontend hot reload)
+pnpm dev                              # Run dev server with Vite HMR (port 3000)
+pnpm -F @rent-stream/app dev:api      # API server only (port 3000, serves static dist/)
 
 # Production
 pnpm build                            # Build all packages

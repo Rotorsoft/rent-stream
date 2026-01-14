@@ -20,13 +20,52 @@ describe("API Router", () => {
 
     expect(result).toBeDefined();
     expect(result.id).toBeDefined();
-    
+
     await app.correlate();
     await app.drain();
 
     const items = await caller.listItems();
     expect(items.length).toBe(1);
     expect(items[0].name).toBe("API Item");
+  });
+
+  it("should create an item with imageUrl", async () => {
+    const imageUrl = "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=800&q=80";
+    const result = await caller.createItem({
+      name: "Camera with Image",
+      serialNumber: "SN-IMG-1",
+      condition: ItemCondition.New,
+      imageUrl,
+    });
+
+    expect(result).toBeDefined();
+    expect(result.id).toBeDefined();
+
+    await app.correlate();
+    await app.drain();
+
+    const items = await caller.listItems();
+    const item = items.find(i => i.name === "Camera with Image");
+    expect(item).toBeDefined();
+    expect(item?.imageUrl).toBe(imageUrl);
+  });
+
+  it("should create an item without imageUrl", async () => {
+    const result = await caller.createItem({
+      name: "Camera without Image",
+      serialNumber: "SN-NO-IMG-1",
+      condition: ItemCondition.New,
+    });
+
+    expect(result).toBeDefined();
+
+    await app.correlate();
+    await app.drain();
+
+    const items = await caller.listItems();
+    const item = items.find(i => i.name === "Camera without Image");
+    expect(item).toBeDefined();
+    expect(item?.imageUrl).toBeUndefined();
   });
 
   it("should perform a full lifecycle via API", async () => {

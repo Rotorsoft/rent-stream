@@ -24,6 +24,42 @@ describe("RentalItem", () => {
     expect(snapshot.state.condition).toBe(ItemCondition.New);
   });
 
+  it("should create a rental item with an imageUrl", async () => {
+    const stream = "item-with-image";
+    const imageUrl = "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=800&q=80";
+    await app.do(
+      "CreateItem",
+      { stream, actor },
+      {
+        name: "Camera with Image",
+        serialNumber: "CAM-IMG-001",
+        condition: ItemCondition.New,
+        imageUrl,
+      }
+    );
+
+    const snapshot = await app.load(RentalItem, stream);
+    expect(snapshot.state.name).toBe("Camera with Image");
+    expect(snapshot.state.imageUrl).toBe(imageUrl);
+  });
+
+  it("should create a rental item without an imageUrl", async () => {
+    const stream = "item-no-image";
+    await app.do(
+      "CreateItem",
+      { stream, actor },
+      {
+        name: "Camera without Image",
+        serialNumber: "CAM-NO-IMG-001",
+        condition: ItemCondition.New,
+      }
+    );
+
+    const snapshot = await app.load(RentalItem, stream);
+    expect(snapshot.state.name).toBe("Camera without Image");
+    expect(snapshot.state.imageUrl).toBeUndefined();
+  });
+
   it("should rent an available item", async () => {
     const stream = "item-123";
     await app.do(

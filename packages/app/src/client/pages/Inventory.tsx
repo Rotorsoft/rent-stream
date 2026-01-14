@@ -5,6 +5,7 @@ import { ItemCondition } from "@rent-stream/domain/schemas";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Package, Search, AlertCircle, CheckCircle2, Clock } from "lucide-react";
 import clsx from "clsx";
+import { StockPicturePicker } from "../components/StockPicturePicker";
 
 const itemAnim = {
   initial: { opacity: 0, y: 20 },
@@ -14,6 +15,7 @@ const itemAnim = {
 
 export function Inventory() {
   const [newItemName, setNewItemName] = useState("");
+  const [selectedImageUrl, setSelectedImageUrl] = useState<string | undefined>(undefined);
 
   const { data: items, isLoading, refetch } = trpc.listItems.useQuery(undefined, {
     refetchOnWindowFocus: false,
@@ -28,6 +30,7 @@ export function Inventory() {
   const createItem = trpc.createItem.useMutation({
     onSuccess: async () => {
       setNewItemName("");
+      setSelectedImageUrl(undefined);
       await refetch();
     },
   });
@@ -37,6 +40,7 @@ export function Inventory() {
       name: newItemName,
       serialNumber: "SN-" + Math.floor(Math.random() * 10000),
       condition: ItemCondition.New,
+      imageUrl: selectedImageUrl,
     });
   };
 
@@ -80,7 +84,7 @@ export function Inventory() {
       </div>
 
       {/* Create New Item Section */}
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         className="glass p-6 rounded-2xl"
@@ -88,13 +92,16 @@ export function Inventory() {
         <div className="flex flex-col sm:flex-row gap-4 items-end">
           <div className="flex-1 w-full">
             <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Add New Item</label>
-            <input
-              type="text"
-              value={newItemName}
-              onChange={(e) => setNewItemName(e.target.value)}
-              placeholder="e.g. Sony A7III Camera Kit"
-              className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-brand-500 focus:ring-2 focus:ring-brand-200 transition-all outline-none"
-            />
+            <div className="flex gap-3 items-center">
+              <input
+                type="text"
+                value={newItemName}
+                onChange={(e) => setNewItemName(e.target.value)}
+                placeholder="e.g. Sony A7III Camera Kit"
+                className="flex-1 px-4 py-3 rounded-xl border border-slate-200 focus:border-brand-500 focus:ring-2 focus:ring-brand-200 transition-all outline-none"
+              />
+              <StockPicturePicker value={selectedImageUrl} onChange={setSelectedImageUrl} />
+            </div>
           </div>
           <button
             onClick={handleCreate}
@@ -149,35 +156,48 @@ export function Inventory() {
                 transition={{ duration: 0.2 }}
               >
                 <Link to={`/items/${item.stream}`} className="block h-full">
-                  <div className="group h-full bg-white hover:bg-white/80 border border-slate-100 hover:border-brand-200 p-5 rounded-2xl shadow-sm hover:shadow-xl hover:shadow-brand-500/10 transition-all duration-300 relative overflow-hidden">
-                    <div className="absolute top-0 right-0 p-5 opacity-5 group-hover:opacity-10 transition-opacity transform group-hover:scale-110 duration-500">
-                      <Package size={80} />
-                    </div>
-
-                    <div className="flex justify-between items-start mb-4">
-                      <div className={clsx("px-2.5 py-1 rounded-lg text-xs font-semibold border flex items-center gap-1.5", getStatusColor(item.status))}>
-                        {getStatusIcon(item.status)}
-                        {item.status}
+                  <div className="group h-full bg-white hover:bg-white/80 border border-slate-100 hover:border-brand-200 rounded-2xl shadow-sm hover:shadow-xl hover:shadow-brand-500/10 transition-all duration-300 relative overflow-hidden flex flex-col">
+                    {/* Thumbnail */}
+                    {item.imageUrl ? (
+                      <div className="h-32 overflow-hidden">
+                        <img
+                          src={item.imageUrl.replace("w=800", "w=400")}
+                          alt={item.name}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        />
                       </div>
-                    </div>
+                    ) : (
+                      <div className="h-32 bg-slate-50 flex items-center justify-center">
+                        <Package className="text-slate-200" size={48} />
+                      </div>
+                    )}
 
-                    <h3 className="text-lg font-bold text-slate-800 mb-1 line-clamp-1 group-hover:text-brand-600 transition-colors">
-                      {item.name}
-                    </h3>
+                    <div className="p-5 flex-1 flex flex-col">
+                      <div className="flex justify-between items-start mb-3">
+                        <div className={clsx("px-2.5 py-1 rounded-lg text-xs font-semibold border flex items-center gap-1.5", getStatusColor(item.status))}>
+                          {getStatusIcon(item.status)}
+                          {item.status}
+                        </div>
+                      </div>
 
-                    <div className="flex items-center gap-2 text-sm text-slate-500 mb-4">
-                      <span className="font-mono text-xs bg-slate-100 px-1.5 py-0.5 rounded text-slate-600">
-                        {item.stream.split('-').pop()}
-                      </span>
-                      <span>•</span>
-                      <span>{item.condition}</span>
-                    </div>
+                      <h3 className="text-lg font-bold text-slate-800 mb-1 line-clamp-1 group-hover:text-brand-600 transition-colors">
+                        {item.name}
+                      </h3>
 
-                    <div className="mt-auto pt-4 border-t border-slate-50 flex justify-between items-center text-xs font-medium text-slate-400 group-hover:text-brand-500 transition-colors">
-                      <span>View Details</span>
-                      <span className="opacity-0 group-hover:opacity-100 transition-all transform translate-x-[-10px] group-hover:translate-x-0">
-                        &rarr;
-                      </span>
+                      <div className="flex items-center gap-2 text-sm text-slate-500 mb-4">
+                        <span className="font-mono text-xs bg-slate-100 px-1.5 py-0.5 rounded text-slate-600">
+                          {item.stream.split('-').pop()}
+                        </span>
+                        <span>•</span>
+                        <span>{item.condition}</span>
+                      </div>
+
+                      <div className="mt-auto pt-4 border-t border-slate-50 flex justify-between items-center text-xs font-medium text-slate-400 group-hover:text-brand-500 transition-colors">
+                        <span>View Details</span>
+                        <span className="opacity-0 group-hover:opacity-100 transition-all transform translate-x-[-10px] group-hover:translate-x-0">
+                          &rarr;
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </Link>
