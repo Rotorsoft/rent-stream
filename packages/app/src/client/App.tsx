@@ -7,7 +7,8 @@ import { Layout } from "./components/Layout";
 import { Inventory } from "./pages/Inventory";
 import { ItemDetail } from "./pages/ItemDetail";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
+// When served from the same origin, use relative path; otherwise use the configured API URL
+const API_URL = import.meta.env.VITE_API_URL || "";
 
 function App() {
   const [queryClient] = useState(() => new QueryClient());

@@ -6,13 +6,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 # Development
-pnpm dev                              # Run API (port 3000) and Web concurrently
-pnpm -F @rent-stream/api dev          # API only with hot reload
-pnpm -F @rent-stream/web dev          # Web only (Vite dev server)
+pnpm dev                              # Run server with hot reload (serves web + API at port 3000)
+pnpm -F @rent-stream/app dev:vite     # Vite dev server only (for frontend hot reload)
 
-# Build
+# Production
 pnpm build                            # Build all packages
-pnpm -F @rent-stream/domain build     # Domain package (required before API)
+pnpm start                            # Start production server (port 3000)
 
 # Testing
 pnpm test                             # Run all tests via Vitest
@@ -31,8 +30,10 @@ This is a **pnpm monorepo** implementing an equipment rental lifecycle platform 
 ### Package Structure
 
 - **`packages/domain`** - Core domain logic using @rotorsoft/act event sourcing framework
-- **`packages/api`** - Fastify server with tRPC routes exposing domain operations
-- **`packages/web`** - React + Vite + Tailwind v4 dashboard
+- **`packages/app`** - Full-stack application:
+  - `src/client/` - React + Vite + Tailwind v4 dashboard
+  - `src/api/` - tRPC router exposing domain operations
+  - `src/server.ts` - Fastify server (serves both web and API from `/trpc`)
 
 ### Event Sourcing Pattern
 
@@ -52,11 +53,11 @@ const RentalItem = act<State, Events, Actions>("RentalItem", {
 - **Events**: Immutable facts (ItemCreated, ItemRented, ItemReturned, DamageReported, etc.)
 - **Actions**: Commands that validate business rules then emit events
 - **Invariants**: Guards like `Item.mustBe(ItemStatus.Available)` that throw if violated
-- **Projections**: Read models in `rent-item-projection.ts` that materialize state from events
+- **Projections**: Read models in `src/api/rent-item-projection.ts` that materialize state from events
 
 ### tRPC API Structure
 
-Routes in `packages/api/src/index.ts`:
+Routes in `packages/app/src/api/index.ts`:
 - **Mutations**: createItem, rentItem, returnItem, inspectItem, reportDamage, scheduleMaintenance, completeMaintenance, retireItem
 - **Queries**: getItem, listItems, getHistory
 - **Subscriptions**: onInventoryUpdate (real-time via EventEmitter)
@@ -85,7 +86,7 @@ Retired (terminal)
 
 ## Recommended Claude Code Plugins
 
-Install the frontend-design plugin for better UI/UX when working on the web package:
+Install the frontend-design plugin for better UI/UX when working on the app package:
 
 ```bash
 /plugin install frontend-design@claude-code-plugins
@@ -105,4 +106,14 @@ expect(state.status).toBe(ItemStatus.Available);
 
 Test files:
 - `packages/domain/test/rental-item.spec.ts` - State machine transitions and invariants
-- `packages/api/test/api.spec.ts` - tRPC router operations
+- `packages/app/test/api.spec.ts` - tRPC router operations
+
+## CI/CD
+
+- **CI**: `.github/workflows/ci.yml` - Runs lint, build, test on push/PR
+- **Deploy**: `.github/workflows/deploy.yml` - Deploys app to GitHub Pages on push to master/main
+
+### Environment Variables
+
+- `PORT` - Server port (default: 3000)
+- `VITE_API_URL` - Optional override for tRPC API URL (defaults to same-origin `/trpc`)

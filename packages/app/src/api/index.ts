@@ -1,9 +1,6 @@
-import cors from "@fastify/cors";
 import { RentalItem, actions } from "@rent-stream/domain";
 import { initTRPC } from "@trpc/server";
 import { observable } from "@trpc/server/observable";
-import { fastifyTRPCPlugin } from "@trpc/server/adapters/fastify";
-import fastify from "fastify";
 import { z } from "zod";
 import { app, ee } from "./builder.js";
 import * as projection from "./rent-item-projection.js";
@@ -23,7 +20,7 @@ export const router = t.router({
       // Manually update projection immediately (don't wait for drain)
       projection.itemReadModel.set(stream, {
         stream,
-        id: input.name.toLowerCase().replace(/\s+/g, '-'),
+        id: input.name.toLowerCase().replace(/\s+/g, "-"),
         name: input.name,
         serialNumber: input.serialNumber,
         status: "Available",
@@ -104,32 +101,27 @@ export const router = t.router({
 
   // --- Queries ---
   // Get single item state
-  getItem: t.procedure
-    .input(z.string())
-    .query(async ({ input }) => {
-      const snapshot = await app.load(RentalItem, input);
-      return { state: snapshot.state };
-    }),
+  getItem: t.procedure.input(z.string()).query(async ({ input }) => {
+    const snapshot = await app.load(RentalItem, input);
+    return { state: snapshot.state };
+  }),
 
   // List all items (Read Model)
-  listItems: t.procedure
-    .query(async () => {
-      return Array.from(projection.itemReadModel.values());
-    }),
+  listItems: t.procedure.query(async () => {
+    return Array.from(projection.itemReadModel.values());
+  }),
 
   // Get event history for timeline
-  getHistory: t.procedure
-    .input(z.string())
-    .query(async ({ input }) => {
-      // Using query_array to fetch events for this stream
-      const events = await app.query_array({ stream: input });
-      return events.map((e: any) => ({
-        id: e.id,
-        name: e.name,
-        created: e.created || new Date().toISOString(),
-        data: e.data || {}
-      }));
-    }),
+  getHistory: t.procedure.input(z.string()).query(async ({ input }) => {
+    // Using query_array to fetch events for this stream
+    const events = await app.query_array({ stream: input });
+    return events.map((e: any) => ({
+      id: e.id,
+      name: e.name,
+      created: e.created || new Date().toISOString(),
+      data: e.data || {},
+    }));
+  }),
 
   // --- Subscriptions ---
   onInventoryUpdate: t.procedure.subscription(() => {
@@ -147,64 +139,5 @@ export const router = t.router({
 
 export type AppRouter = typeof router;
 
-export const server = fastify({
-  logger: process.env.NODE_ENV !== "test",
-});
-
-await server.register(cors, {
-  origin: "*",
-});
-
-server.register(fastifyTRPCPlugin, {
-  prefix: "/trpc",
-  trpcOptions: { router: router },
-});
-
-// SSE endpoint for subscriptions (tRPC httpSubscriptionLink format)
-server.get("/trpc/onInventoryUpdate.subscribe", async (request, reply) => {
-  request.raw.setTimeout(0);
-
-  reply.raw.writeHead(200, {
-    "Content-Type": "text/event-stream",
-    "Cache-Control": "no-cache, no-transform",
-    "Connection": "keep-alive",
-    "Access-Control-Allow-Origin": "*",
-    "X-Accel-Buffering": "no",
-  });
-  reply.raw.flushHeaders();
-
-  let eventId = 0;
-  const sendMessage = (result: unknown) => {
-    const id = (eventId++).toString();
-    reply.raw.write(`id: ${id}\ndata: ${JSON.stringify({ id, result })}\n\n`);
-  };
-
-  sendMessage({ type: "started" });
-
-  const onUpdate = () => {
-    sendMessage({ type: "data", data: { timestamp: Date.now() } });
-  };
-
-  ee.on("inventoryUpdated", onUpdate);
-
-  request.raw.on("close", () => {
-    ee.off("inventoryUpdated", onUpdate);
-  });
-});
-
-export const start = async () => {
-  try {
-    // Initial drain to catch up projections
-    await app.drain();
-    const port = Number(process.env.PORT) || 3000;
-    await server.listen({ port, host: "0.0.0.0" });
-    console.log(`Server listening on http://0.0.0.0:${port}`);
-  } catch (err) {
-    server.log.error(err);
-    process.exit(1);
-  }
-};
-
-if (process.env.NODE_ENV !== "test") {
-  start();
-}
+// Re-export app and event emitter for server setup
+export { app, ee };

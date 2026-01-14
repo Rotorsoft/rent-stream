@@ -1,32 +1,40 @@
 {
-  "name": "@rent-stream/web",
-  "version": "0.0.0",
+  "name": "@rent-stream/app",
+  "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
+    "dev": "tsx watch src/server.ts",
+    "dev:vite": "vite",
+    "build": "vite build && tsc -p tsconfig.server.json",
     "lint": "eslint . --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
-    "start": "npx http-server ./dist"
+    "start": "node dist/server.js"
   },
   "dependencies": {
-    "@rent-stream/api": "workspace:*",
+    "@fastify/cors": "^11.2.0",
+    "@fastify/static": "^9.0.0",
     "@rent-stream/domain": "workspace:*",
+    "@rotorsoft/act": "latest",
+    "@rotorsoft/act-pg": "latest",
     "@tanstack/react-query": "^5.90.16",
     "@trpc/client": "^11.8.1",
     "@trpc/react-query": "^11.8.1",
     "@trpc/server": "^11.8.1",
     "clsx": "^2.1.1",
+    "fastify": "^5.6.2",
     "framer-motion": "^12.26.2",
     "lucide-react": "^0.562.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
     "react-router-dom": "^7.12.0",
-    "tailwind-merge": "^3.4.0"
+    "tailwind-merge": "^3.4.0",
+    "tsx": "^4.21.0",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",
     "@tailwindcss/postcss": "^4.1.18",
+    "@types/node": "^22.15.21",
     "@types/react": "^19.2.8",
     "@types/react-dom": "^19.2.3",
     "@typescript-eslint/eslint-plugin": "^8.53.0",

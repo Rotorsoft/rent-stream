@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { router } from "../src/index.js";
-import { app } from "../src/builder.js";
-import * as projection from "../src/rent-item-projection.js";
+import { router, app } from "../src/api/index.js";
+import * as projection from "../src/api/rent-item-projection.js";
 import { ItemCondition, ItemStatus } from "@rent-stream/domain";
 
 describe("API Router", () => {

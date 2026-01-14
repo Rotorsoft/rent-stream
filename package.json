@@ -9,7 +9,8 @@
     "build": "pnpm -r build",
     "test": "vitest run",
     "lint": "pnpm -r lint",
-    "dev": "concurrently \"pnpm -F @rent-stream/api dev\" \"pnpm -F @rent-stream/web dev\" --names \"API,WEB\" --prefix-colors \"blue,green\""
+    "dev": "pnpm -F @rent-stream/app dev",
+    "start": "pnpm -F @rent-stream/app start"
   },
   "devDependencies": {
     "@vitest/coverage-v8": "4.0.17",

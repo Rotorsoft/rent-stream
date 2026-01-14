@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { ItemStatus, ItemCondition } from "@rent-stream/domain";
-import * as projection from "../src/rent-item-projection.js";
-import { app } from "../src/builder.js";
+import * as projection from "../src/api/rent-item-projection.js";
+import { app } from "../src/api/index.js";
 import { randomUUID } from "crypto";
 
 describe("RentItem Projection", () => {

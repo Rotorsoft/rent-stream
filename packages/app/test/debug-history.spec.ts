@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { router } from "../src/index.js";
-import { app } from "../src/builder.js";
+import { router, app } from "../src/api/index.js";
 import { ItemCondition } from "@rent-stream/domain";
 
 describe("Debug History", () => {
