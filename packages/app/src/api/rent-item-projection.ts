@@ -2,9 +2,22 @@ import { type AsCommitted } from "@rotorsoft/act";
 import { ItemStatus, ItemCondition } from "@rent-stream/domain";
 import { builder } from "./builder.js";
 
+// Read model item type
+export interface ReadModelItem {
+  stream: string;
+  id: string;
+  name: string;
+  serialNumber: string;
+  status: ItemStatus;
+  condition: ItemCondition;
+  currentRenterId?: string;
+  damageReport?: string;
+  maintenanceReason?: string;
+}
+
 // In-memory Read Model
 // Maps streamId -> { id, name, status, condition, ... }
-export const itemReadModel = new Map<string, any>();
+export const itemReadModel = new Map<string, ReadModelItem>();
 
 export async function itemCreated(
   event: AsCommitted<typeof builder.events, "ItemCreated">

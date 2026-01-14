@@ -6,7 +6,7 @@ describe("Debug History", () => {
   const caller = router.createCaller({});
 
   it("should check history event structure", async () => {
-    const createRes: any = await caller.createItem({
+    const createRes = await caller.createItem({
       name: "Debug Item",
       serialNumber: "SN-DEBUG",
       condition: ItemCondition.New,

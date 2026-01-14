@@ -1,4 +1,4 @@
-import { RentalItem, actions } from "@rent-stream/domain";
+import { RentalItem, actions, ItemStatus } from "@rent-stream/domain";
 import { initTRPC } from "@trpc/server";
 import { observable } from "@trpc/server/observable";
 import { z } from "zod";
@@ -23,7 +23,7 @@ export const router = t.router({
         id: input.name.toLowerCase().replace(/\s+/g, "-"),
         name: input.name,
         serialNumber: input.serialNumber,
-        status: "Available",
+        status: ItemStatus.Available,
         condition: input.condition,
       });
 
@@ -115,10 +115,10 @@ export const router = t.router({
   getHistory: t.procedure.input(z.string()).query(async ({ input }) => {
     // Using query_array to fetch events for this stream
     const events = await app.query_array({ stream: input });
-    return events.map((e: any) => ({
+    return events.map((e) => ({
       id: e.id,
       name: e.name,
-      created: e.created || new Date().toISOString(),
+      created: e.created?.toISOString() || new Date().toISOString(),
       data: e.data || {},
     }));
   }),

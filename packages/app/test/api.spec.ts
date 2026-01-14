@@ -12,7 +12,7 @@ describe("API Router", () => {
   });
 
   it("should create an item", async () => {
-    const result: any = await caller.createItem({
+    const result = await caller.createItem({
       name: "API Item",
       serialNumber: "SN-API-1",
       condition: ItemCondition.New,
@@ -31,7 +31,7 @@ describe("API Router", () => {
 
   it("should perform a full lifecycle via API", async () => {
     // 1. Create
-    const createRes: any = await caller.createItem({
+    const createRes = await caller.createItem({
       name: "Lifecycle Item",
       serialNumber: "SN-LC",
       condition: ItemCondition.New,
@@ -84,7 +84,7 @@ describe("API Router", () => {
     await app.drain();
 
     // 9. Verify state via getItem query
-    const result: any = await caller.getItem(itemId);
+    const result = await caller.getItem(itemId);
     expect(result.state.status).toBe(ItemStatus.Retired);
 
     // 10. Verify history
@@ -93,7 +93,7 @@ describe("API Router", () => {
   });
 
   it("should fail when returning an item that is not rented", async () => {
-    const createRes: any = await caller.createItem({
+    const createRes = await caller.createItem({
       name: "Non-rented Item",
       serialNumber: "SN-NR",
       condition: ItemCondition.New,
@@ -104,7 +104,7 @@ describe("API Router", () => {
   });
 
   it("should fail when renting a retired item", async () => {
-    const createRes: any = await caller.createItem({
+    const createRes = await caller.createItem({
       name: "To be retired",
       serialNumber: "SN-TBR",
       condition: ItemCondition.New,
