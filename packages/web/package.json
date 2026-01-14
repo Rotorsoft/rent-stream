@@ -7,7 +7,7 @@
     "build": "tsc -b && vite build",
     "lint": "eslint . --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
-    "start": "vite --host"
+    "start": "npx http-server ./dist"
   },
   "dependencies": {
     "@rent-stream/api": "workspace:*",
