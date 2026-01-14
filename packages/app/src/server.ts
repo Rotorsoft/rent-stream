@@ -16,29 +16,7 @@ await server.register(cors, {
   origin: "*",
 });
 
-server.register(fastifyTRPCPlugin, {
-  prefix: "/trpc",
-  trpcOptions: { router },
-});
-
-// Serve static web files from the dist folder
-const webDistPath = path.join(__dirname, "../dist");
-server.register(fastifyStatic, {
-  root: webDistPath,
-  prefix: "/",
-  wildcard: false,
-});
-
-// SPA fallback: serve index.html for all non-API routes
-server.setNotFoundHandler(async (request, reply) => {
-  // Don't serve index.html for API routes
-  if (request.url.startsWith("/trpc")) {
-    return reply.status(404).send({ error: "Not Found" });
-  }
-  return reply.sendFile("index.html");
-});
-
-// SSE endpoint for subscriptions (tRPC httpSubscriptionLink format)
+// SSE endpoint for subscriptions (must be before tRPC and static handlers)
 server.get("/trpc/onInventoryUpdate.subscribe", async (request, reply) => {
   request.raw.setTimeout(0);
 
@@ -68,6 +46,28 @@ server.get("/trpc/onInventoryUpdate.subscribe", async (request, reply) => {
   request.raw.on("close", () => {
     ee.off("inventoryUpdated", onUpdate);
   });
+});
+
+server.register(fastifyTRPCPlugin, {
+  prefix: "/trpc",
+  trpcOptions: { router },
+});
+
+// Serve static web files from the dist folder
+const webDistPath = path.join(__dirname, "../dist");
+server.register(fastifyStatic, {
+  root: webDistPath,
+  prefix: "/",
+  wildcard: false,
+});
+
+// SPA fallback: serve index.html for all non-API routes
+server.setNotFoundHandler(async (request, reply) => {
+  // Don't serve index.html for API routes
+  if (request.url.startsWith("/trpc")) {
+    return reply.status(404).send({ error: "Not Found" });
+  }
+  return reply.sendFile("index.html");
 });
 
 export const start = async () => {

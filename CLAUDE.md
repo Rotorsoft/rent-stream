@@ -116,4 +116,3 @@ Test files:
 ### Environment Variables
 
 - `PORT` - Server port (default: 3000)
-- `VITE_API_URL` - Optional override for tRPC API URL (defaults to same-origin `/trpc`)

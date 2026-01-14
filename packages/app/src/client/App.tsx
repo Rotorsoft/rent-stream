@@ -7,9 +7,6 @@ import { Layout } from "./components/Layout";
 import { Inventory } from "./pages/Inventory";
 import { ItemDetail } from "./pages/ItemDetail";
 
-// When served from the same origin, use relative path; otherwise use the configured API URL
-const API_URL = import.meta.env.VITE_API_URL || "";
-
 function App() {
   const [queryClient] = useState(() => new QueryClient());
   const [trpcClient] = useState(() =>
@@ -18,10 +15,10 @@ function App() {
         splitLink({
           condition: (op) => op.type === "subscription",
           true: httpSubscriptionLink({
-            url: `${API_URL}/trpc`,
+            url: "/trpc",
           }),
           false: httpLink({
-            url: `${API_URL}/trpc`,
+            url: "/trpc",
           }),
         }),
       ],
