@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/server.ts",
-    "dev:vite": "vite",
+    "dev": "tsx watch src/dev-server.ts",
+    "dev:api": "tsx watch src/server.ts",
     "build": "vite build && tsc -p tsconfig.server.json",
     "lint": "eslint . --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",

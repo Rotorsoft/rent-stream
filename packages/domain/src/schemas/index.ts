@@ -25,6 +25,7 @@ export const RentalItem = z.object({
   currentRenterId: z.string().optional(),
   maintenanceReason: z.string().optional(),
   damageReport: z.string().optional(),
+  imageUrl: z.string().optional(),
 });
 
 export const events = {
@@ -33,6 +34,7 @@ export const events = {
     name: z.string(),
     serialNumber: z.string(),
     initialCondition: z.enum(ItemCondition),
+    imageUrl: z.string().optional(),
   }),
   ItemRented: z.object({
     renterId: z.string(),
@@ -67,6 +69,7 @@ export const actions = {
     name: z.string(),
     serialNumber: z.string(),
     condition: z.enum(ItemCondition),
+    imageUrl: z.string().optional(),
   }),
   RentItem: z.object({
     renterId: z.string(),

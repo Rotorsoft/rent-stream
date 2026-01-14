@@ -4,3 +4,10 @@ This file tracks AI-assisted development progress.
 Each entry documents: date, feature, decisions, files changed, tests, and concerns.
 
 ---
+
+[2026-01-14] #1 feat: add stock picture selection when creating rental items
+- Files: schemas/index.ts, rental-item.ts, index.ts, rent-item-projection.ts, Inventory.tsx, ItemDetail.tsx, StockPicturePicker.tsx, stockPictures.ts, dev-server.ts, tests
+- Changes: Added imageUrl field to domain state/events/actions, created compact StockPicturePicker (icon button with dropdown), 100 curated stock images with local search/filter by name and category
+- Decisions: Local filtering instead of API (no config needed), picker positioned inline next to item name input, category chips for quick filtering
+- Dev setup: Single dev server (dev-server.ts) integrates Vite middleware with Fastify - both API and frontend on port 3000 with HMR
+- Issues: None

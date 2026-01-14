@@ -25,6 +25,7 @@ export const router = t.router({
         serialNumber: input.serialNumber,
         status: ItemStatus.Available,
         condition: input.condition,
+        imageUrl: input.imageUrl,
       });
 
       return { success: true, id: stream };

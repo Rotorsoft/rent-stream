@@ -3,7 +3,7 @@ import { ActionButtons } from "../components/ActionButtons";
 import { Timeline } from "../components/Timeline";
 import { trpc } from "../utils/trpc";
 import { motion } from "framer-motion";
-import { ArrowLeft, Package, Activity, AlertTriangle, User } from "lucide-react";
+import { ArrowLeft, Package, Activity, AlertTriangle, User, ImageIcon } from "lucide-react";
 import clsx from "clsx";
 
 export function ItemDetail() {
@@ -84,7 +84,29 @@ export function ItemDetail() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Main Info */}
         <div className="lg:col-span-2 space-y-6">
-          
+
+          {/* Item Image */}
+          {item.imageUrl ? (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="glass rounded-2xl overflow-hidden"
+            >
+              <img
+                src={item.imageUrl}
+                alt={item.name}
+                className="w-full h-64 object-cover"
+              />
+            </motion.div>
+          ) : (
+            <div className="glass rounded-2xl h-48 flex items-center justify-center bg-slate-50">
+              <div className="text-center">
+                <ImageIcon className="w-12 h-12 text-slate-300 mx-auto mb-2" />
+                <p className="text-sm text-slate-400">No image available</p>
+              </div>
+            </div>
+          )}
+
           {/* Status Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="glass p-5 rounded-2xl flex items-start gap-4">

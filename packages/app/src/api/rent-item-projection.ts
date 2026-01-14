@@ -13,6 +13,7 @@ export interface ReadModelItem {
   currentRenterId?: string;
   damageReport?: string;
   maintenanceReason?: string;
+  imageUrl?: string;
 }
 
 // In-memory Read Model
@@ -30,6 +31,7 @@ export async function itemCreated(
     serialNumber: data.serialNumber,
     status: ItemStatus.Available,
     condition: data.initialCondition,
+    imageUrl: data.imageUrl,
   });
 }
 

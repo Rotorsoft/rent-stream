@@ -50,6 +50,7 @@ export const RentalItem = state("RentalItem", schemas.RentalItem)
       serialNumber: data.serialNumber,
       status: schemas.ItemStatus.Available,
       condition: data.initialCondition,
+      imageUrl: data.imageUrl,
     }),
 
     ItemRented: ({ data }) => ({
@@ -87,7 +88,7 @@ export const RentalItem = state("RentalItem", schemas.RentalItem)
   .on("CreateItem", schemas.actions.CreateItem)
   .emit((data) => [
     "ItemCreated",
-    { ...data, id: randomUUID(), initialCondition: data.condition },
+    { ...data, id: randomUUID(), initialCondition: data.condition, imageUrl: data.imageUrl },
   ])
 
   // --- Rental Lifecycle ---
