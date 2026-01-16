@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { router, app } from "../src/api/index.js";
-import { ItemCondition } from "@rent-stream/domain";
+import { ItemCondition, ItemCategory } from "@rent-stream/domain";
 
 describe("Debug History", () => {
   const caller = router.createCaller({});
@@ -10,6 +10,9 @@ describe("Debug History", () => {
       name: "Debug Item",
       serialNumber: "SN-DEBUG",
       condition: ItemCondition.New,
+      category: ItemCategory.Other,
+      initialQuantity: 5,
+      basePrice: 50,
     });
     const itemId = createRes.id;
 

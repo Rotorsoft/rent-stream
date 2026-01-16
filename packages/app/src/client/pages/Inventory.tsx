@@ -61,7 +61,7 @@ export function Inventory() {
 
   const formatPrice = (price: number) => `$${price.toFixed(2)}`;
 
-  const getAvailabilityText = (available: number, total: number) => {
+  const getAvailabilityText = (available: number) => {
     if (available === 0) return "Out of stock";
     if (available === 1) return "Last one!";
     if (available <= 3) return `Only ${available} left`;
@@ -202,7 +202,7 @@ export function Inventory() {
                         item.availableQuantity === 0 ? "text-red-600" :
                         item.availableQuantity <= 3 ? "text-orange-600" : "text-green-600"
                       )}>
-                        {getAvailabilityText(item.availableQuantity, item.totalQuantity)}
+                        {getAvailabilityText(item.availableQuantity)}
                       </div>
 
                       <div className="flex items-center gap-2 text-sm text-slate-500 mb-4">

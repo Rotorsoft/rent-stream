@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { router, app } from "../src/api/index.js";
 import * as projection from "../src/api/rent-item-projection.js";
-import { ItemCondition, ItemStatus, ItemCategory, PricingStrategy, RentalItem } from "@rent-stream/domain";
+import { ItemCondition, ItemStatus, ItemCategory } from "@rent-stream/domain";
 
 describe("API Router", () => {
   const caller = router.createCaller({});
@@ -100,7 +100,7 @@ describe("API Router", () => {
     });
 
     // Get rental ID for return
-    let snapshot = await caller.getItem(itemId);
+    const snapshot = await caller.getItem(itemId);
     const rentalId = snapshot.state.activeRentals[0].rentalId;
 
     // 3. Inspect

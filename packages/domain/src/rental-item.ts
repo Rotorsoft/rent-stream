@@ -307,7 +307,7 @@ export const RentalItem = state("RentalItem", schemas.RentalItem)
 
   // --- Rental Lifecycle ---
   .on("RentItem", schemas.actions.RentItem)
-  .given([Item.mustBeAvailable, Item.mustNotBeRetired])
+  .given([Item.mustNotBeRetired, Item.mustBeAvailable])
   .emit((data) => ["ItemRented", {
     ...data,
     quantity: data.quantity || 1,
@@ -317,11 +317,14 @@ export const RentalItem = state("RentalItem", schemas.RentalItem)
 
   .on("ReturnItem", schemas.actions.ReturnItem)
   .given([Item.mustHaveRentals])
-  .emit((data) => ["ItemReturned", {
-    rentalId: data.rentalId,
-    returnDate: new Date().toISOString(),
-    quantityReturned: 1,
-  }])
+  .emit((data, snapshot) => {
+    const rental = snapshot.state.activeRentals.find((r: { rentalId: string; quantity: number }) => r.rentalId === data.rentalId);
+    return ["ItemReturned", {
+      rentalId: data.rentalId,
+      returnDate: new Date().toISOString(),
+      quantityReturned: rental?.quantity || 1,
+    }];
+  })
 
   // --- Quality Control & Issues ---
   .on("InspectItem", schemas.actions.InspectItem)
