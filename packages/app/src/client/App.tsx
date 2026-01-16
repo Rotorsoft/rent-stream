@@ -6,6 +6,7 @@ import { trpc } from "./utils/trpc";
 import { Layout } from "./components/Layout";
 import { Inventory } from "./pages/Inventory";
 import { ItemDetail } from "./pages/ItemDetail";
+import { Admin } from "./pages/Admin";
 
 function App() {
   const [queryClient] = useState(() => new QueryClient());
@@ -33,6 +34,7 @@ function App() {
             <Route path="/" element={<Layout />}>
               <Route index element={<Inventory />} />
               <Route path="items/:id" element={<ItemDetail />} />
+              <Route path="admin" element={<Admin />} />
             </Route>
           </Routes>
         </BrowserRouter>

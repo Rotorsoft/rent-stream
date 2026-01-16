@@ -16,24 +16,30 @@ export function Layout() {
           </span>
         </Link>
         <div className="flex space-x-8">
-          <Link 
-            to="/" 
+          <Link
+            to="/"
             className="text-sm font-medium text-slate-600 hover:text-brand-600 transition-colors relative"
           >
             Inventory
             {location.pathname === "/" && (
-              <motion.div 
-                layoutId="underline" 
+              <motion.div
+                layoutId="underline"
                 className="absolute left-0 right-0 -bottom-1 h-0.5 bg-brand-500 rounded-full"
               />
             )}
           </Link>
-          <a href="#" className="text-sm font-medium text-slate-600 hover:text-brand-600 transition-colors">
-            Analytics
-          </a>
-          <a href="#" className="text-sm font-medium text-slate-600 hover:text-brand-600 transition-colors">
-            Settings
-          </a>
+          <Link
+            to="/admin"
+            className="text-sm font-medium text-slate-600 hover:text-brand-600 transition-colors relative"
+          >
+            Admin
+            {location.pathname === "/admin" && (
+              <motion.div
+                layoutId="underline"
+                className="absolute left-0 right-0 -bottom-1 h-0.5 bg-brand-500 rounded-full"
+              />
+            )}
+          </Link>
         </div>
         <div className="flex items-center gap-4">
           <div className="w-8 h-8 rounded-full bg-slate-200 border-2 border-white shadow-sm overflow-hidden">
