@@ -10,7 +10,8 @@
     "test": "vitest run",
     "lint": "pnpm -r lint",
     "dev": "pnpm -F @rent-stream/app dev",
-    "start": "pnpm -F @rent-stream/app start"
+    "start": "pnpm -F @rent-stream/app start",
+    "seed": "pnpm -F @rent-stream/app seed"
   },
   "devDependencies": {
     "@vitest/coverage-v8": "4.0.17",

@@ -3,7 +3,7 @@ import { ActionButtons } from "../components/ActionButtons";
 import { Timeline } from "../components/Timeline";
 import { trpc } from "../utils/trpc";
 import { motion } from "framer-motion";
-import { ArrowLeft, Package, Activity, AlertTriangle, User, ImageIcon } from "lucide-react";
+import { ArrowLeft, Package, Activity, AlertTriangle, User, ImageIcon, DollarSign, TrendingUp, Box } from "lucide-react";
 import clsx from "clsx";
 
 export function ItemDetail() {
@@ -26,7 +26,7 @@ export function ItemDetail() {
       <div className="w-10 h-10 border-4 border-brand-200 border-t-brand-600 rounded-full animate-spin" />
     </div>
   );
-  
+
   if (!snapshot) return (
     <div className="text-center py-20">
       <Package className="w-16 h-16 text-slate-300 mx-auto mb-4" />
@@ -35,11 +35,12 @@ export function ItemDetail() {
     </div>
   );
 
-  const item = { ...snapshot.state, id: id };
+  const item = { ...snapshot.state, id: id! };
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case "Available": return "bg-green-100 text-green-700 border-green-200";
+      case "OutOfStock": return "bg-red-100 text-red-700 border-red-200";
       case "Rented": return "bg-brand-100 text-brand-700 border-brand-200";
       case "Maintenance": return "bg-orange-100 text-orange-700 border-orange-200";
       case "Quarantined": return "bg-red-100 text-red-700 border-red-200";
@@ -47,8 +48,21 @@ export function ItemDetail() {
     }
   };
 
+  const formatPrice = (price: number) => `$${price.toFixed(2)}`;
+
+  const getAvailabilityText = (available: number, total: number) => {
+    if (available === 0) return "Out of stock";
+    if (available === 1) return "Last one available!";
+    if (available <= 3) return `Only ${available} left`;
+    return `${available} of ${total} available`;
+  };
+
+  const priceIncreasePercent = item.basePrice > 0
+    ? Math.round((item.currentPrice / item.basePrice - 1) * 100)
+    : 0;
+
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       className="space-y-8"
@@ -56,19 +70,24 @@ export function ItemDetail() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
         <div className="flex items-start gap-4">
-          <Link 
-            to="/" 
+          <Link
+            to="/"
             className="group p-2 -ml-2 rounded-xl hover:bg-white/50 transition-colors"
             title="Back to Inventory"
           >
             <ArrowLeft className="text-slate-500 group-hover:text-brand-600 transition-colors" />
           </Link>
           <div>
-            <div className="flex items-center gap-3 mb-1">
+            <div className="flex items-center gap-3 mb-1 flex-wrap">
               <h1 className="text-3xl font-bold text-slate-900 tracking-tight">{item.name}</h1>
               <span className={clsx("px-3 py-1 rounded-full text-sm font-bold border", getStatusColor(item.status))}>
-                {item.status}
+                {item.status === "OutOfStock" ? "Out of Stock" : item.status}
               </span>
+              {item.category && (
+                <span className="px-2.5 py-1 bg-slate-100 text-slate-600 rounded-lg text-sm font-medium">
+                  {item.category}
+                </span>
+              )}
             </div>
             <p className="text-slate-500 flex items-center gap-2">
               <span className="font-mono bg-slate-100 px-2 py-0.5 rounded text-sm text-slate-600 border border-slate-200">
@@ -107,20 +126,62 @@ export function ItemDetail() {
             </div>
           )}
 
-          {/* Status Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* Pricing & Availability Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="glass p-5 rounded-2xl flex items-start gap-4">
               <div className="p-3 bg-brand-50 rounded-xl text-brand-600">
-                <User size={24} />
+                <DollarSign size={24} />
               </div>
               <div>
-                <p className="text-sm font-medium text-slate-500">Current Renter</p>
-                <p className="text-lg font-semibold text-slate-900 mt-0.5">
-                  {item.currentRenterId || "Not currently rented"}
+                <p className="text-sm font-medium text-slate-500">Current Price</p>
+                <p className="text-2xl font-bold text-slate-900 mt-0.5">
+                  {formatPrice(item.currentPrice)}
+                  <span className="text-sm font-normal text-slate-500">/day</span>
+                </p>
+                {priceIncreasePercent > 0 && (
+                  <p className="text-xs text-orange-600 flex items-center gap-1 mt-1">
+                    <TrendingUp size={12} />
+                    +{priceIncreasePercent}% surge pricing
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="glass p-5 rounded-2xl flex items-start gap-4">
+              <div className={clsx(
+                "p-3 rounded-xl",
+                item.availableQuantity === 0 ? "bg-red-50 text-red-600" :
+                item.availableQuantity <= 3 ? "bg-orange-50 text-orange-600" : "bg-green-50 text-green-600"
+              )}>
+                <Box size={24} />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-slate-500">Availability</p>
+                <p className={clsx(
+                  "text-lg font-semibold mt-0.5",
+                  item.availableQuantity === 0 ? "text-red-600" :
+                  item.availableQuantity <= 3 ? "text-orange-600" : "text-green-600"
+                )}>
+                  {getAvailabilityText(item.availableQuantity, item.totalQuantity)}
                 </p>
               </div>
             </div>
 
+            <div className="glass p-5 rounded-2xl flex items-start gap-4">
+              <div className="p-3 bg-slate-50 rounded-xl text-slate-600">
+                <User size={24} />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-slate-500">Active Rentals</p>
+                <p className="text-lg font-semibold text-slate-900 mt-0.5">
+                  {item.activeRentals?.length || 0} rented out
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Health & Damage */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="glass p-5 rounded-2xl flex items-start gap-4">
               <div className={clsx("p-3 rounded-xl", item.damageReport ? "bg-red-50 text-red-600" : "bg-green-50 text-green-600")}>
                 <Activity size={24} />
@@ -132,10 +193,22 @@ export function ItemDetail() {
                 </p>
               </div>
             </div>
+
+            <div className="glass p-5 rounded-2xl flex items-start gap-4">
+              <div className="p-3 bg-slate-50 rounded-xl text-slate-600">
+                <TrendingUp size={24} />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-slate-500">Pricing Strategy</p>
+                <p className="text-lg font-semibold text-slate-900 mt-0.5 capitalize">
+                  {item.pricingStrategy || "linear"}
+                </p>
+              </div>
+            </div>
           </div>
 
           {item.damageReport && (
-             <motion.div 
+             <motion.div
                initial={{ opacity: 0, scale: 0.95 }}
                animate={{ opacity: 1, scale: 1 }}
                className="bg-red-50 border border-red-100 rounded-2xl p-5 flex gap-4"
@@ -174,4 +247,3 @@ export function ItemDetail() {
     </motion.div>
   );
 }
-

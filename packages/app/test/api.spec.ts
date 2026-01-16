@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { router, app } from "../src/api/index.js";
 import * as projection from "../src/api/rent-item-projection.js";
-import { ItemCondition, ItemStatus } from "@rent-stream/domain";
+import { ItemCondition, ItemStatus, ItemCategory } from "@rent-stream/domain";
 
 describe("API Router", () => {
   const caller = router.createCaller({});
@@ -16,6 +16,9 @@ describe("API Router", () => {
       name: "API Item",
       serialNumber: "SN-API-1",
       condition: ItemCondition.New,
+      category: ItemCategory.Other,
+      initialQuantity: 5,
+      basePrice: 50,
     });
 
     expect(result).toBeDefined();
@@ -27,6 +30,8 @@ describe("API Router", () => {
     const items = await caller.listItems();
     expect(items.length).toBe(1);
     expect(items[0].name).toBe("API Item");
+    expect(items[0].totalQuantity).toBe(5);
+    expect(items[0].basePrice).toBe(50);
   });
 
   it("should create an item with imageUrl", async () => {
@@ -35,6 +40,9 @@ describe("API Router", () => {
       name: "Camera with Image",
       serialNumber: "SN-IMG-1",
       condition: ItemCondition.New,
+      category: ItemCategory.Electronics,
+      initialQuantity: 3,
+      basePrice: 100,
       imageUrl,
     });
 
@@ -55,6 +63,9 @@ describe("API Router", () => {
       name: "Camera without Image",
       serialNumber: "SN-NO-IMG-1",
       condition: ItemCondition.New,
+      category: ItemCategory.Electronics,
+      initialQuantity: 2,
+      basePrice: 75,
     });
 
     expect(result).toBeDefined();
@@ -69,11 +80,14 @@ describe("API Router", () => {
   });
 
   it("should perform a full lifecycle via API", async () => {
-    // 1. Create
+    // 1. Create with quantity 1 so renting makes it out of stock
     const createRes = await caller.createItem({
       name: "Lifecycle Item",
       serialNumber: "SN-LC",
       condition: ItemCondition.New,
+      category: ItemCategory.Other,
+      initialQuantity: 1,
+      basePrice: 50,
     });
     const itemId = createRes.id;
 
@@ -81,8 +95,13 @@ describe("API Router", () => {
     await caller.rentItem({
       itemId,
       renterId: "renter-api",
+      quantity: 1,
       expectedReturnDate: new Date().toISOString(),
     });
+
+    // Get rental ID for return
+    const snapshot = await caller.getItem(itemId);
+    const rentalId = snapshot.state.activeRentals[0].rentalId;
 
     // 3. Inspect
     await caller.inspectItem({
@@ -97,8 +116,8 @@ describe("API Router", () => {
       description: "Scratched surface",
     });
 
-    // 5. Return
-    await caller.returnItem({ itemId });
+    // 5. Return (with rentalId)
+    await caller.returnItem({ itemId, rentalId });
 
     // 6. Schedule Maintenance
     await caller.scheduleMaintenance({
@@ -131,15 +150,18 @@ describe("API Router", () => {
     expect(history.length).toBeGreaterThan(5);
   });
 
-  it("should fail when returning an item that is not rented", async () => {
+  it("should fail when returning an item that has no active rentals", async () => {
     const createRes = await caller.createItem({
       name: "Non-rented Item",
       serialNumber: "SN-NR",
       condition: ItemCondition.New,
+      category: ItemCategory.Other,
+      initialQuantity: 5,
+      basePrice: 50,
     });
     const itemId = createRes.id;
 
-    await expect(caller.returnItem({ itemId })).rejects.toThrow("Item must be currently rented");
+    await expect(caller.returnItem({ itemId, rentalId: "fake-rental-id" })).rejects.toThrow("Item must have active rentals");
   });
 
   it("should fail when renting a retired item", async () => {
@@ -147,6 +169,9 @@ describe("API Router", () => {
       name: "To be retired",
       serialNumber: "SN-TBR",
       condition: ItemCondition.New,
+      category: ItemCategory.Other,
+      initialQuantity: 5,
+      basePrice: 50,
     });
     const itemId = createRes.id;
 
@@ -155,7 +180,8 @@ describe("API Router", () => {
     await expect(caller.rentItem({
       itemId,
       renterId: "renter-1",
+      quantity: 1,
       expectedReturnDate: new Date().toISOString(),
-    })).rejects.toThrow("Item must be Available");
+    })).rejects.toThrow("Item must not be retired");
   });
 });

@@ -1,8 +1,12 @@
-export { 
-  ItemStatus, 
-  ItemCondition, 
-  events, 
-  actions 
+export {
+  ItemStatus,
+  ItemCondition,
+  ItemCategory,
+  PricingStrategy,
+  SkuStatus,
+  SkuUnit,
+  events,
+  actions
 } from "./schemas/index.js";
-export { RentalItem } from "./rental-item.js";
+export { RentalItem, calculateDynamicPrice, generateSku } from "./rental-item.js";
 

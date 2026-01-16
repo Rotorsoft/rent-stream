@@ -1,15 +1,35 @@
 import { useState } from "react";
 import { trpc } from "../utils/trpc";
 import { ItemStatus, ItemCondition } from "@rent-stream/domain/schemas";
-import { Play, RotateCcw, OctagonAlert, ClipboardCheck, Wrench, CircleCheck, Trash2, Save, Send, Calendar, Archive } from "lucide-react";
+import { Play, RotateCcw, OctagonAlert, ClipboardCheck, Wrench, CircleCheck, Trash2, Save, Send, Calendar, Archive, User } from "lucide-react";
 import clsx from "clsx";
 
-type ActionType = "inspect" | "damage" | "maintenance" | "complete-maintenance" | "retire" | null;
+type ActionType = "inspect" | "damage" | "maintenance" | "complete-maintenance" | "retire" | "return" | null;
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function ActionButtons({ item, refetch }: { item: any; refetch: () => void }) {
+interface ActiveRental {
+  rentalId: string;
+  renterId: string;
+  quantity: number;
+  expectedReturnDate: string;
+}
+
+interface ItemProps {
+  id: string;
+  status: ItemStatus;
+  condition: ItemCondition;
+  availableQuantity: number;
+  totalQuantity: number;
+  currentPrice: number;
+  activeRentals?: ActiveRental[];
+  damageReport?: string;
+  maintenanceReason?: string;
+}
+
+export function ActionButtons({ item, refetch }: { item: ItemProps; refetch: () => void }) {
   const [activeAction, setActiveAction] = useState<ActionType>(null);
-  
+  const [selectedRentalId, setSelectedRentalId] = useState<string>("");
+  const [rentQuantity, setRentQuantity] = useState(1);
+
   // Form states
   const [damageDescription, setDamageDescription] = useState("");
   const [inspectCondition, setInspectCondition] = useState<ItemCondition>(ItemCondition.Good);
@@ -26,6 +46,8 @@ export function ActionButtons({ item, refetch }: { item: any; refetch: () => voi
     setRetireReason("");
     setMaintNotes("");
     setInspectNotes("");
+    setSelectedRentalId("");
+    setRentQuantity(1);
     refetch();
   };
 
@@ -41,11 +63,15 @@ export function ActionButtons({ item, refetch }: { item: any; refetch: () => voi
     rentItem.mutate({
       itemId: item.id,
       renterId: "user-" + Math.random().toString(36).substr(2, 9),
+      quantity: rentQuantity,
       expectedReturnDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
     });
   };
 
-  const handleReturn = () => returnItem.mutate({ itemId: item.id });
+  const handleReturn = () => {
+    if (!selectedRentalId) return;
+    returnItem.mutate({ itemId: item.id, rentalId: selectedRentalId });
+  };
 
   const handleInspect = () => {
     inspectItem.mutate({
@@ -93,37 +119,114 @@ export function ActionButtons({ item, refetch }: { item: any; refetch: () => voi
   const btnSecondary = "bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 hover:border-slate-300 shadow-sm active:bg-slate-100";
   const btnDanger = "bg-red-50 text-red-600 border border-red-100 hover:bg-red-100 hover:border-red-200";
 
+  const hasActiveRentals = item.activeRentals && item.activeRentals.length > 0;
+  const canRent = item.availableQuantity > 0 && item.status !== ItemStatus.Quarantined && item.status !== ItemStatus.Maintenance;
+
   return (
     <div className="flex flex-col gap-6">
       {/* Primary Actions */}
       <div className="flex flex-col gap-3">
-        {item.status === ItemStatus.Available && (
-          <button onClick={handleRent} disabled={rentItem.isPending} className={clsx(btnBase, btnPrimary, "w-full text-base")}>
-            <Play size={18} fill="currentColor" />
-            <span>{rentItem.isPending ? "Processing..." : "Rent Item"}</span>
-          </button>
+        {/* Rent Action */}
+        {canRent && (
+          <div className="space-y-2">
+            <div className="flex gap-2">
+              <select
+                value={rentQuantity}
+                onChange={(e) => setRentQuantity(parseInt(e.target.value))}
+                className="px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-medium"
+              >
+                {Array.from({ length: Math.min(item.availableQuantity, 10) }, (_, i) => i + 1).map(n => (
+                  <option key={n} value={n}>{n}</option>
+                ))}
+              </select>
+              <button
+                onClick={handleRent}
+                disabled={rentItem.isPending}
+                className={clsx(btnBase, btnPrimary, "flex-1 text-base")}
+              >
+                <Play size={18} fill="currentColor" />
+                <span>{rentItem.isPending ? "Processing..." : `Rent ${rentQuantity > 1 ? `(${rentQuantity})` : ""}`}</span>
+              </button>
+            </div>
+            <p className="text-xs text-slate-500 text-center">
+              ${(item.currentPrice * rentQuantity).toFixed(2)}/day for {rentQuantity} unit{rentQuantity > 1 ? "s" : ""}
+            </p>
+          </div>
         )}
 
-        {(!!item.currentRenterId) && (
-          <button onClick={handleReturn} disabled={returnItem.isPending} className={clsx(btnBase, btnPrimary, "w-full text-base")}>
+        {/* Return Action - Show if there are active rentals */}
+        {hasActiveRentals && (
+          <button
+            onClick={() => setActiveAction(activeAction === 'return' ? null : 'return')}
+            className={clsx(btnBase, btnPrimary, "w-full text-base", activeAction === 'return' && "ring-2 ring-brand-300")}
+          >
             <RotateCcw size={18} />
-            <span>{returnItem.isPending ? "Processing..." : "Return Item"}</span>
+            <span>Return Item</span>
           </button>
         )}
       </div>
 
+      {/* Return Rental Selection */}
+      {activeAction === 'return' && hasActiveRentals && (
+        <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
+          <h4 className="font-medium text-slate-900 flex items-center gap-2">
+            <User size={16} /> Select Rental to Return
+          </h4>
+          <div className="space-y-2">
+            {item.activeRentals?.map((rental) => (
+              <label
+                key={rental.rentalId}
+                className={clsx(
+                  "flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors",
+                  selectedRentalId === rental.rentalId
+                    ? "border-brand-500 bg-brand-50"
+                    : "border-slate-200 bg-white hover:border-brand-300"
+                )}
+              >
+                <input
+                  type="radio"
+                  name="rentalId"
+                  value={rental.rentalId}
+                  checked={selectedRentalId === rental.rentalId}
+                  onChange={(e) => setSelectedRentalId(e.target.value)}
+                  className="text-brand-600"
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-slate-900">{rental.renterId}</p>
+                  <p className="text-xs text-slate-500">
+                    Qty: {rental.quantity} • Due: {new Date(rental.expectedReturnDate).toLocaleDateString()}
+                  </p>
+                </div>
+              </label>
+            ))}
+          </div>
+          <button
+            onClick={handleReturn}
+            disabled={returnItem.isPending || !selectedRentalId}
+            className={clsx(btnBase, btnPrimary, "w-full")}
+          >
+            {returnItem.isPending ? (
+              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            ) : (
+              <RotateCcw size={16} />
+            )}
+            <span>{returnItem.isPending ? "Processing..." : "Confirm Return"}</span>
+          </button>
+        </div>
+      )}
+
       <div>
         <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Management</h3>
-        
+
         <div className="grid grid-cols-2 gap-3">
-          <button 
+          <button
             onClick={() => setActiveAction(activeAction === 'inspect' ? null : 'inspect')}
             className={clsx(btnBase, btnSecondary, activeAction === 'inspect' && "ring-2 ring-brand-500 border-transparent")}
           >
             <ClipboardCheck size={16} /> <span>Inspect</span>
           </button>
-          
-          <button 
+
+          <button
             onClick={() => setActiveAction(activeAction === 'damage' ? null : 'damage')}
             className={clsx(btnBase, btnSecondary, activeAction === 'damage' && "ring-2 ring-red-500 border-transparent")}
           >
@@ -131,14 +234,14 @@ export function ActionButtons({ item, refetch }: { item: any; refetch: () => voi
           </button>
 
           {item.status !== ItemStatus.Maintenance ? (
-             <button 
+             <button
              onClick={() => setActiveAction(activeAction === 'maintenance' ? null : 'maintenance')}
              className={clsx(btnBase, btnSecondary, activeAction === 'maintenance' && "ring-2 ring-orange-500 border-transparent")}
            >
              <Wrench size={16} /> <span>Maintain</span>
            </button>
           ) : (
-            <button 
+            <button
             onClick={() => setActiveAction(activeAction === 'complete-maintenance' ? null : 'complete-maintenance')}
             className={clsx(btnBase, "bg-green-50 text-green-700 border border-green-200 hover:bg-green-100", activeAction === 'complete-maintenance' && "ring-2 ring-green-500 border-transparent")}
           >
@@ -146,7 +249,7 @@ export function ActionButtons({ item, refetch }: { item: any; refetch: () => voi
           </button>
           )}
 
-          <button 
+          <button
             onClick={() => setActiveAction(activeAction === 'retire' ? null : 'retire')}
             className={clsx(btnBase, btnDanger, activeAction === 'retire' && "ring-2 ring-red-500 border-transparent")}
           >
@@ -155,9 +258,9 @@ export function ActionButtons({ item, refetch }: { item: any; refetch: () => voi
         </div>
 
         {/* Active Action Form */}
-        {activeAction && (
+        {activeAction && activeAction !== 'return' && (
           <div className="mt-4 bg-slate-50 p-4 rounded-xl border border-slate-200 animate-in fade-in slide-in-from-top-2 duration-200">
-            
+
             {/* Inspect Form */}
             {activeAction === 'inspect' && (
               <div className="space-y-3">
