@@ -32,6 +32,22 @@ export enum PricingStrategy {
   Tiered = "tiered",
 }
 
+export enum SkuStatus {
+  Available = "available",
+  Rented = "rented",
+  Maintenance = "maintenance",
+  Damaged = "damaged",
+  Retired = "retired",
+}
+
+// Individual unit tracking
+export const SkuUnit = z.object({
+  sku: z.string(),
+  status: z.nativeEnum(SkuStatus),
+  condition: z.nativeEnum(ItemCondition),
+  notes: z.string().optional(),
+});
+
 export const RentalItem = z.object({
   id: z.string(),
   name: z.string(),
@@ -40,19 +56,21 @@ export const RentalItem = z.object({
   category: z.nativeEnum(ItemCategory),
   status: z.nativeEnum(ItemStatus),
   condition: z.nativeEnum(ItemCondition),
-  // Quantity tracking
+  // Individual unit tracking with SKUs
+  skus: z.array(SkuUnit),
+  // Computed quantity tracking (derived from skus)
   totalQuantity: z.number().int().min(0),
   availableQuantity: z.number().int().min(0),
   // Pricing
   basePrice: z.number().min(0),
   currentPrice: z.number().min(0),
   pricingStrategy: z.nativeEnum(PricingStrategy),
-  // Rental tracking (for individual rentals)
+  // Rental tracking with specific SKUs
   currentRenterId: z.string().optional(),
   activeRentals: z.array(z.object({
     rentalId: z.string(),
     renterId: z.string(),
-    quantity: z.number().int().min(1),
+    skus: z.array(z.string()), // SKU IDs being rented
     expectedReturnDate: z.string(),
   })),
   maintenanceReason: z.string().optional(),
@@ -68,7 +86,7 @@ export const events = {
     serialNumber: z.string(),
     category: z.nativeEnum(ItemCategory),
     initialCondition: z.nativeEnum(ItemCondition),
-    initialQuantity: z.number().int().min(1),
+    initialSkus: z.array(z.string()), // Generated SKU IDs
     basePrice: z.number().min(0),
     pricingStrategy: z.nativeEnum(PricingStrategy),
     imageUrl: z.string().optional(),
@@ -76,15 +94,24 @@ export const events = {
   ItemRented: z.object({
     renterId: z.string(),
     rentalId: z.string(),
-    quantity: z.number().int().min(1),
+    skus: z.array(z.string()), // Specific SKUs being rented
     priceAtRental: z.number().min(0),
     expectedReturnDate: z.string(),
   }),
   ItemReturned: z.object({
     rentalId: z.string(),
     returnDate: z.string(),
-    quantityReturned: z.number().int().min(1),
+    skusReturned: z.array(z.string()), // SKUs being returned
   }),
+  SkusAdded: z.object({
+    skus: z.array(z.string()), // New SKU IDs
+    reason: z.string().optional(),
+  }),
+  SkusRemoved: z.object({
+    skus: z.array(z.string()), // SKUs to remove
+    reason: z.string(),
+  }),
+  // Legacy events for backwards compatibility
   QuantityAdded: z.object({
     amount: z.number().int().min(1),
     reason: z.string().optional(),
@@ -136,17 +163,17 @@ export const actions = {
     serialNumber: z.string(),
     category: z.nativeEnum(ItemCategory),
     condition: z.nativeEnum(ItemCondition),
-    initialQuantity: z.number().int().min(1),
+    initialQuantity: z.number().int().min(1), // Will generate this many SKUs
     basePrice: z.number().min(0),
     pricingStrategy: z.nativeEnum(PricingStrategy).default(PricingStrategy.Linear),
     imageUrl: z.string().optional(),
   }),
-  AddQuantity: z.object({
-    amount: z.number().int().min(1),
+  AddSkus: z.object({
+    quantity: z.number().int().min(1), // Number of new SKUs to generate
     reason: z.string().optional(),
   }),
-  RemoveQuantity: z.object({
-    amount: z.number().int().min(1),
+  RemoveSkus: z.object({
+    skus: z.array(z.string()), // Specific SKUs to remove
     reason: z.string(),
   }),
   SetBasePrice: z.object({
@@ -158,7 +185,8 @@ export const actions = {
   // Customer actions
   RentItem: z.object({
     renterId: z.string(),
-    quantity: z.number().int().min(1).default(1),
+    skus: z.array(z.string()).optional(), // Specific SKUs to rent (optional - will auto-assign if not specified)
+    quantity: z.number().int().min(1).default(1), // Number to rent if skus not specified
     expectedReturnDate: z.string(),
   }),
   ReturnItem: z.object({

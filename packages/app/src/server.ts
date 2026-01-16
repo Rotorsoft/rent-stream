@@ -5,6 +5,7 @@ import fastify from "fastify";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { router, app, ee } from "./api/index.js";
+import { seedInventory, checkIfSeeded } from "./seed-data.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -74,6 +75,16 @@ export const start = async () => {
   try {
     // Initial drain to catch up projections
     await app.drain();
+
+    // Auto-seed if no items exist
+    const isSeeded = await checkIfSeeded();
+    if (!isSeeded) {
+      console.log("No inventory found. Seeding database...");
+      await seedInventory();
+      await app.drain();
+      console.log("Seed completed.");
+    }
+
     const port = Number(process.env.PORT) || 3000;
     await server.listen({ port, host: "0.0.0.0" });
     console.log(`Server listening on http://0.0.0.0:${port}`);

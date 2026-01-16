@@ -1,4 +1,4 @@
-import { RentalItem, actions, ItemStatus, ItemCategory, PricingStrategy } from "@rent-stream/domain";
+import { RentalItem, actions, ItemStatus, ItemCategory, PricingStrategy, SkuStatus, generateSku } from "@rent-stream/domain";
 import { initTRPC } from "@trpc/server";
 import { observable } from "@trpc/server/observable";
 import { z } from "zod";
@@ -17,6 +17,16 @@ export const router = t.router({
       const stream = `item-${Date.now()}`;
       await app.do("CreateItem", { stream, actor }, input);
 
+      // Generate SKUs for immediate projection update
+      const skus = [];
+      for (let i = 1; i <= input.initialQuantity; i++) {
+        skus.push({
+          sku: generateSku(input.serialNumber, i),
+          status: SkuStatus.Available,
+          condition: input.condition,
+        });
+      }
+
       // Manually update projection immediately (don't wait for drain)
       projection.itemReadModel.set(stream, {
         stream,
@@ -27,6 +37,7 @@ export const router = t.router({
         category: input.category,
         status: ItemStatus.Available,
         condition: input.condition,
+        skus,
         totalQuantity: input.initialQuantity,
         availableQuantity: input.initialQuantity,
         basePrice: input.basePrice,
@@ -39,21 +50,21 @@ export const router = t.router({
       return { success: true, id: stream };
     }),
 
-  addQuantity: t.procedure
-    .input(actions.AddQuantity.extend({ itemId: z.string() }))
+  addSkus: t.procedure
+    .input(actions.AddSkus.extend({ itemId: z.string() }))
     .mutation(async ({ input }) => {
       const { itemId, ...payload } = input;
       const actor = { id: "admin-1", name: "Admin" };
-      await app.do("AddQuantity", { stream: itemId, actor }, payload);
+      await app.do("AddSkus", { stream: itemId, actor }, payload);
       return { success: true };
     }),
 
-  removeQuantity: t.procedure
-    .input(actions.RemoveQuantity.extend({ itemId: z.string() }))
+  removeSkus: t.procedure
+    .input(actions.RemoveSkus.extend({ itemId: z.string() }))
     .mutation(async ({ input }) => {
       const { itemId, ...payload } = input;
       const actor = { id: "admin-1", name: "Admin" };
-      await app.do("RemoveQuantity", { stream: itemId, actor }, payload);
+      await app.do("RemoveSkus", { stream: itemId, actor }, payload);
       return { success: true };
     }),
 
@@ -216,6 +227,32 @@ export const router = t.router({
       data: e.data || {},
     }));
   }),
+
+  // Get recent events across all items for admin log
+  getRecentEvents: t.procedure
+    .input(z.object({ limit: z.number().int().min(1).max(100).default(50) }).optional())
+    .query(async ({ input }) => {
+      const limit = input?.limit ?? 50;
+      // Query all events without stream filter, ordered by most recent
+      const events = await app.query_array({ after: -1, limit });
+
+      // Get item names from projection for context
+      const itemNames = new Map<string, string>();
+      for (const [stream, item] of projection.itemReadModel.entries()) {
+        itemNames.set(stream, item.name);
+      }
+
+      return events
+        .map((e) => ({
+          id: e.id,
+          stream: e.stream,
+          itemName: itemNames.get(e.stream) || e.stream,
+          name: e.name,
+          created: e.created?.toISOString() || new Date().toISOString(),
+          data: e.data || {},
+        }))
+        .sort((a, b) => new Date(b.created).getTime() - new Date(a.created).getTime());
+    }),
 
   // --- Subscriptions ---
   onInventoryUpdate: t.procedure.subscription(() => {

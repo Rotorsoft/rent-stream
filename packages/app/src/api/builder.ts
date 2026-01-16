@@ -10,6 +10,8 @@ export const app = builder
   .on("ItemCreated").do(projection.itemCreated).to("items")
   .on("ItemRented").do(projection.itemRented).to("items")
   .on("ItemReturned").do(projection.itemReturned).to("items")
+  .on("SkusAdded").do(projection.skusAdded).to("items")
+  .on("SkusRemoved").do(projection.skusRemoved).to("items")
   .on("QuantityAdded").do(projection.quantityAdded).to("items")
   .on("QuantityRemoved").do(projection.quantityRemoved).to("items")
   .on("BasePriceSet").do(projection.basePriceSet).to("items")

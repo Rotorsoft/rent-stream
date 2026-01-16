@@ -1,13 +1,60 @@
 import { useState } from "react";
 import { trpc } from "../utils/trpc";
-import { ItemCondition, ItemCategory, PricingStrategy } from "@rent-stream/domain/schemas";
+import { ItemCondition, ItemCategory, PricingStrategy, SkuStatus } from "@rent-stream/domain/schemas";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Package, Settings, TrendingUp, Minus, DollarSign, BarChart3 } from "lucide-react";
+import { Plus, Package, Settings, TrendingUp, Minus, DollarSign, BarChart3, History } from "lucide-react";
 import clsx from "clsx";
 import { StockPicturePicker } from "../components/StockPicturePicker";
 
 const categoryOptions = Object.values(ItemCategory);
 const pricingOptions = Object.values(PricingStrategy);
+
+// Helper to format event data for display
+function formatEventData(eventName: string, data: Record<string, unknown>): string {
+  switch (eventName) {
+    case "ItemCreated":
+      return `Created with ${(data.initialSkus as string[])?.length || 0} units at $${data.basePrice}/day`;
+    case "ItemRented":
+      return `Rented ${(data.skus as string[])?.length || 1} unit(s) to ${data.renterId}`;
+    case "ItemReturned":
+      return `${(data.skusReturned as string[])?.length || 1} unit(s) returned`;
+    case "SkusAdded":
+      return `Added ${(data.skus as string[])?.length || 0} new SKUs`;
+    case "SkusRemoved":
+      return `Removed ${(data.skus as string[])?.length || 0} SKUs: ${data.reason}`;
+    case "BasePriceSet":
+      return `Price changed from $${data.previousPrice} to $${data.newPrice}`;
+    case "PricingStrategyChanged":
+      return `Strategy: ${data.previousStrategy} → ${data.newStrategy}`;
+    case "DamageReported":
+      return `${data.description}`;
+    case "MaintenanceScheduled":
+      return `${data.reason}`;
+    case "MaintenanceCompleted":
+      return data.notes ? `${data.notes}` : "Maintenance complete";
+    case "ItemRetired":
+      return `${data.reason}`;
+    default:
+      return "";
+  }
+}
+
+// Helper to format relative time
+function formatTimeAgo(dateString: string): string {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffSec = Math.floor(diffMs / 1000);
+  const diffMin = Math.floor(diffSec / 60);
+  const diffHour = Math.floor(diffMin / 60);
+  const diffDay = Math.floor(diffHour / 24);
+
+  if (diffSec < 60) return "just now";
+  if (diffMin < 60) return `${diffMin}m ago`;
+  if (diffHour < 24) return `${diffHour}h ago`;
+  if (diffDay < 7) return `${diffDay}d ago`;
+  return date.toLocaleDateString();
+}
 
 export function Admin() {
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -32,9 +79,16 @@ export function Admin() {
     refetchOnWindowFocus: false,
   });
   const { data: availability } = trpc.getAvailability.useQuery();
+  const { data: recentEvents, refetch: refetchEvents } = trpc.getRecentEvents.useQuery(
+    { limit: 30 },
+    { refetchOnWindowFocus: false }
+  );
 
   trpc.onInventoryUpdate.useSubscription(undefined, {
-    onData: () => refetch(),
+    onData: () => {
+      refetch();
+      refetchEvents();
+    },
   });
 
   const createItem = trpc.createItem.useMutation({
@@ -53,8 +107,8 @@ export function Admin() {
     },
   });
 
-  const addQuantity = trpc.addQuantity.useMutation({ onSuccess: () => refetch() });
-  const removeQuantity = trpc.removeQuantity.useMutation({ onSuccess: () => refetch() });
+  const addSkus = trpc.addSkus.useMutation({ onSuccess: () => refetch() });
+  const removeSkus = trpc.removeSkus.useMutation({ onSuccess: () => refetch() });
   const setBasePrice = trpc.setBasePrice.useMutation({ onSuccess: () => refetch() });
   const setPricingStrategy = trpc.setPricingStrategy.useMutation({ onSuccess: () => refetch() });
 
@@ -353,6 +407,65 @@ export function Admin() {
         </div>
       </div>
 
+      {/* Event Log */}
+      <div className="glass rounded-2xl overflow-hidden">
+        <div className="p-4 border-b border-slate-100 flex items-center gap-3">
+          <div className="p-2 bg-brand-100 rounded-lg">
+            <History className="text-brand-600" size={18} />
+          </div>
+          <div>
+            <h2 className="font-semibold text-slate-900">Event Log</h2>
+            <p className="text-xs text-slate-500">Recent inventory events</p>
+          </div>
+        </div>
+        <div className="max-h-80 overflow-y-auto">
+          {recentEvents?.length === 0 && (
+            <div className="px-6 py-8 text-center text-slate-500">
+              No events yet.
+            </div>
+          )}
+          <div className="divide-y divide-slate-100">
+            {recentEvents?.map((event) => (
+              <div key={`${event.stream}-${event.id}`} className="px-4 py-3 hover:bg-slate-50/50 transition-colors">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className={clsx(
+                        "px-2 py-0.5 rounded text-xs font-medium",
+                        event.name === "ItemCreated" && "bg-green-100 text-green-700",
+                        event.name === "ItemRented" && "bg-blue-100 text-blue-700",
+                        event.name === "ItemReturned" && "bg-purple-100 text-purple-700",
+                        event.name === "SkusAdded" && "bg-emerald-100 text-emerald-700",
+                        event.name === "SkusRemoved" && "bg-red-100 text-red-700",
+                        event.name === "BasePriceSet" && "bg-orange-100 text-orange-700",
+                        event.name === "PricingStrategyChanged" && "bg-yellow-100 text-yellow-700",
+                        event.name === "DamageReported" && "bg-red-100 text-red-700",
+                        event.name === "MaintenanceScheduled" && "bg-amber-100 text-amber-700",
+                        event.name === "MaintenanceCompleted" && "bg-teal-100 text-teal-700",
+                        event.name === "ItemRetired" && "bg-slate-100 text-slate-700",
+                        !["ItemCreated", "ItemRented", "ItemReturned", "SkusAdded", "SkusRemoved",
+                          "BasePriceSet", "PricingStrategyChanged", "DamageReported",
+                          "MaintenanceScheduled", "MaintenanceCompleted", "ItemRetired"].includes(event.name) &&
+                          "bg-slate-100 text-slate-600"
+                      )}>
+                        {event.name.replace(/([A-Z])/g, ' $1').trim()}
+                      </span>
+                      <span className="text-sm text-slate-700 truncate">{event.itemName}</span>
+                    </div>
+                    <div className="mt-1 text-xs text-slate-500">
+                      {formatEventData(event.name, event.data)}
+                    </div>
+                  </div>
+                  <span className="text-xs text-slate-400 whitespace-nowrap">
+                    {formatTimeAgo(event.created)}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
       {/* Edit Modal */}
       <AnimatePresence>
         {editingItem && (
@@ -395,13 +508,13 @@ export function Admin() {
                         />
                         <button
                           onClick={() => {
-                            addQuantity.mutate({
+                            addSkus.mutate({
                               itemId: item.stream,
-                              amount: quantityAdjust.amount,
+                              quantity: quantityAdjust.amount,
                               reason: quantityAdjust.reason || undefined,
                             });
                           }}
-                          disabled={addQuantity.isPending}
+                          disabled={addSkus.isPending}
                           className="flex-1 px-4 py-2 bg-green-100 hover:bg-green-200 text-green-700 font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
                         >
                           <Plus size={16} />
@@ -409,13 +522,20 @@ export function Admin() {
                         </button>
                         <button
                           onClick={() => {
-                            removeQuantity.mutate({
-                              itemId: item.stream,
-                              amount: quantityAdjust.amount,
-                              reason: quantityAdjust.reason || "Removed by admin",
-                            });
+                            // Get available SKUs to remove
+                            const availableSkus = item.skus
+                              ?.filter(s => s.status === SkuStatus.Available)
+                              .slice(0, quantityAdjust.amount)
+                              .map(s => s.sku) || [];
+                            if (availableSkus.length > 0) {
+                              removeSkus.mutate({
+                                itemId: item.stream,
+                                skus: availableSkus,
+                                reason: quantityAdjust.reason || "Removed by admin",
+                              });
+                            }
                           }}
-                          disabled={removeQuantity.isPending || item.availableQuantity < quantityAdjust.amount}
+                          disabled={removeSkus.isPending || item.availableQuantity < quantityAdjust.amount}
                           className="flex-1 px-4 py-2 bg-red-100 hover:bg-red-200 text-red-700 font-medium rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
                         >
                           <Minus size={16} />

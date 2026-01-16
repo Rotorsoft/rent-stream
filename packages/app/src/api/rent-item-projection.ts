@@ -1,12 +1,20 @@
 import { type AsCommitted } from "@rotorsoft/act";
-import { ItemStatus, ItemCondition, ItemCategory, PricingStrategy, calculateDynamicPrice } from "@rent-stream/domain";
+import { ItemStatus, ItemCondition, ItemCategory, PricingStrategy, SkuStatus, calculateDynamicPrice } from "@rent-stream/domain";
 import { builder } from "./builder.js";
 
-// Active rental tracking
+// SKU unit for tracking individual items
+interface SkuUnit {
+  sku: string;
+  status: SkuStatus;
+  condition: ItemCondition;
+  notes?: string;
+}
+
+// Active rental tracking with SKUs
 interface ActiveRental {
   rentalId: string;
   renterId: string;
-  quantity: number;
+  skus: string[];
   expectedReturnDate: string;
 }
 
@@ -20,7 +28,9 @@ export interface ReadModelItem {
   category: ItemCategory;
   status: ItemStatus;
   condition: ItemCondition;
-  // Quantity tracking
+  // SKU tracking
+  skus: SkuUnit[];
+  // Computed quantity tracking
   totalQuantity: number;
   availableQuantity: number;
   // Pricing
@@ -35,14 +45,23 @@ export interface ReadModelItem {
   imageUrl?: string;
 }
 
+// Helper to count available SKUs
+const countAvailableSkus = (skus: SkuUnit[]): number =>
+  skus.filter(s => s.status === SkuStatus.Available).length;
+
 // In-memory Read Model
-// Maps streamId -> { id, name, status, condition, ... }
 export const itemReadModel = new Map<string, ReadModelItem>();
 
 export async function itemCreated(
   event: AsCommitted<typeof builder.events, "ItemCreated">
 ) {
   const { stream, data } = event;
+  const skus: SkuUnit[] = data.initialSkus.map(sku => ({
+    sku,
+    status: SkuStatus.Available,
+    condition: data.initialCondition,
+  }));
+
   itemReadModel.set(stream, {
     stream,
     id: data.id,
@@ -52,8 +71,9 @@ export async function itemCreated(
     category: data.category,
     status: ItemStatus.Available,
     condition: data.initialCondition,
-    totalQuantity: data.initialQuantity,
-    availableQuantity: data.initialQuantity,
+    skus,
+    totalQuantity: skus.length,
+    availableQuantity: skus.length,
     basePrice: data.basePrice,
     currentPrice: data.basePrice,
     pricingStrategy: data.pricingStrategy,
@@ -68,16 +88,24 @@ export async function itemRented(
   const { stream, data } = event;
   const item = itemReadModel.get(stream);
   if (item) {
-    const newAvailable = item.availableQuantity - data.quantity;
+    const rentedSkuSet = new Set(data.skus);
+    const updatedSkus = item.skus.map(s =>
+      rentedSkuSet.has(s.sku)
+        ? { ...s, status: SkuStatus.Rented }
+        : s
+    );
+
+    const newAvailable = countAvailableSkus(updatedSkus);
     const newPrice = calculateDynamicPrice(
       item.basePrice,
-      item.totalQuantity,
+      updatedSkus.length,
       newAvailable,
       item.pricingStrategy
     );
 
     itemReadModel.set(stream, {
       ...item,
+      skus: updatedSkus,
       availableQuantity: newAvailable,
       currentPrice: newPrice,
       status: newAvailable > 0 ? ItemStatus.Available : ItemStatus.OutOfStock,
@@ -87,7 +115,7 @@ export async function itemRented(
         {
           rentalId: data.rentalId,
           renterId: data.renterId,
-          quantity: data.quantity,
+          skus: data.skus,
           expectedReturnDate: data.expectedReturnDate,
         },
       ],
@@ -101,12 +129,17 @@ export async function itemReturned(
   const { stream, data } = event;
   const item = itemReadModel.get(stream);
   if (item) {
-    const rental = item.activeRentals.find(r => r.rentalId === data.rentalId);
-    const quantityReturned = rental?.quantity || data.quantityReturned;
-    const newAvailable = item.availableQuantity + quantityReturned;
+    const returnedSkuSet = new Set(data.skusReturned);
+    const updatedSkus = item.skus.map(s =>
+      returnedSkuSet.has(s.sku)
+        ? { ...s, status: SkuStatus.Available }
+        : s
+    );
+
+    const newAvailable = countAvailableSkus(updatedSkus);
     const newPrice = calculateDynamicPrice(
       item.basePrice,
-      item.totalQuantity,
+      updatedSkus.length,
       newAvailable,
       item.pricingStrategy
     );
@@ -118,6 +151,7 @@ export async function itemReturned(
 
     itemReadModel.set(stream, {
       ...item,
+      skus: updatedSkus,
       availableQuantity: newAvailable,
       currentPrice: newPrice,
       status: nextStatus,
@@ -127,6 +161,66 @@ export async function itemReturned(
   }
 }
 
+export async function skusAdded(
+  event: AsCommitted<typeof builder.events, "SkusAdded">
+) {
+  const { stream, data } = event;
+  const item = itemReadModel.get(stream);
+  if (item) {
+    const newSkus: SkuUnit[] = data.skus.map(sku => ({
+      sku,
+      status: SkuStatus.Available,
+      condition: item.condition,
+    }));
+
+    const allSkus = [...item.skus, ...newSkus];
+    const newAvailable = countAvailableSkus(allSkus);
+    const newPrice = calculateDynamicPrice(
+      item.basePrice,
+      allSkus.length,
+      newAvailable,
+      item.pricingStrategy
+    );
+
+    itemReadModel.set(stream, {
+      ...item,
+      skus: allSkus,
+      totalQuantity: allSkus.length,
+      availableQuantity: newAvailable,
+      currentPrice: newPrice,
+      status: newAvailable > 0 ? ItemStatus.Available : item.status,
+    });
+  }
+}
+
+export async function skusRemoved(
+  event: AsCommitted<typeof builder.events, "SkusRemoved">
+) {
+  const { stream, data } = event;
+  const item = itemReadModel.get(stream);
+  if (item) {
+    const removedSet = new Set(data.skus);
+    const remainingSkus = item.skus.filter(s => !removedSet.has(s.sku));
+    const newAvailable = countAvailableSkus(remainingSkus);
+    const newPrice = calculateDynamicPrice(
+      item.basePrice,
+      remainingSkus.length,
+      newAvailable,
+      item.pricingStrategy
+    );
+
+    itemReadModel.set(stream, {
+      ...item,
+      skus: remainingSkus,
+      totalQuantity: remainingSkus.length,
+      availableQuantity: newAvailable,
+      currentPrice: newPrice,
+      status: newAvailable > 0 ? ItemStatus.Available : ItemStatus.OutOfStock,
+    });
+  }
+}
+
+// Legacy handlers for backwards compatibility
 export async function quantityAdded(
   event: AsCommitted<typeof builder.events, "QuantityAdded">
 ) {
@@ -306,8 +400,14 @@ export async function itemRetired(
   const { stream } = event;
   const item = itemReadModel.get(stream);
   if (item) {
+    const retiredSkus = item.skus.map(s => ({
+      ...s,
+      status: SkuStatus.Retired,
+    }));
+
     itemReadModel.set(stream, {
       ...item,
+      skus: retiredSkus,
       status: ItemStatus.Retired,
       availableQuantity: 0,
     });

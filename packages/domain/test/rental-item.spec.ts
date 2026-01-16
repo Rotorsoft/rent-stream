@@ -87,7 +87,7 @@ describe("RentalItem", () => {
       expect(snapshot.state.totalQuantity).toBe(5);
       expect(snapshot.state.availableQuantity).toBe(3); // 5 - 2 = 3
       expect(snapshot.state.activeRentals).toHaveLength(1);
-      expect(snapshot.state.activeRentals[0].quantity).toBe(2);
+      expect(snapshot.state.activeRentals[0].skus).toHaveLength(2);
       expect(snapshot.state.status).toBe(ItemStatus.Available); // Still available
     });
 
@@ -192,33 +192,39 @@ describe("RentalItem", () => {
     });
   });
 
-  describe("Quantity Management (Admin)", () => {
-    it("should add quantity to existing item", async () => {
-      const stream = "item-add-qty";
+  describe("SKU Management (Admin)", () => {
+    it("should add SKUs to existing item", async () => {
+      const stream = "item-add-skus";
       await createTestItem(stream, { initialQuantity: 5 });
 
-      await app.do("AddQuantity", { stream, actor }, {
-        amount: 3,
+      await app.do("AddSkus", { stream, actor }, {
+        quantity: 3,
         reason: "Restocking",
       });
 
       const snapshot = await app.load(RentalItem, stream);
       expect(snapshot.state.totalQuantity).toBe(8);
       expect(snapshot.state.availableQuantity).toBe(8);
+      expect(snapshot.state.skus).toHaveLength(8);
     });
 
-    it("should remove quantity from item", async () => {
-      const stream = "item-remove-qty";
+    it("should remove SKUs from item", async () => {
+      const stream = "item-remove-skus";
       await createTestItem(stream, { initialQuantity: 10 });
 
-      await app.do("RemoveQuantity", { stream, actor }, {
-        amount: 3,
+      // Get the first 3 available SKUs
+      let snapshot = await app.load(RentalItem, stream);
+      const skusToRemove = snapshot.state.skus.slice(0, 3).map(s => s.sku);
+
+      await app.do("RemoveSkus", { stream, actor }, {
+        skus: skusToRemove,
         reason: "Damaged units",
       });
 
-      const snapshot = await app.load(RentalItem, stream);
+      snapshot = await app.load(RentalItem, stream);
       expect(snapshot.state.totalQuantity).toBe(7);
       expect(snapshot.state.availableQuantity).toBe(7);
+      expect(snapshot.state.skus).toHaveLength(7);
     });
   });
 

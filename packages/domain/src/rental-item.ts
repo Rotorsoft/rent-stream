@@ -4,6 +4,13 @@ import { z } from "zod";
 import * as schemas from "./schemas/index.js";
 
 type RentalItemState = z.infer<typeof schemas.RentalItem>;
+type SkuUnit = z.infer<typeof schemas.SkuUnit>;
+
+// --- SKU Generation ---
+export function generateSku(serialNumber: string, index: number): string {
+  const paddedIndex = String(index).padStart(4, '0');
+  return `${serialNumber}-${paddedIndex}`;
+}
 
 // --- Pricing Calculation ---
 export function calculateDynamicPrice(
@@ -18,29 +25,26 @@ export function calculateDynamicPrice(
 
   switch (strategy) {
     case schemas.PricingStrategy.Linear:
-      // Price increases linearly as availability decreases
-      // At 100% availability: price = basePrice
-      // At 0% availability: price = basePrice * 2
       return Math.round(basePrice * (1 + (1 - availabilityRatio)) * 100) / 100;
 
     case schemas.PricingStrategy.Exponential:
-      // Price increases exponentially as availability decreases
-      // At 100% availability: price = basePrice
-      // At 0% availability: price ≈ basePrice * 2.72
-      const k = 1; // scaling factor
+      const k = 1;
       return Math.round(basePrice * Math.exp(k * (1 - availabilityRatio)) * 100) / 100;
 
     case schemas.PricingStrategy.Tiered:
-      // Tiered pricing based on availability thresholds
-      if (availabilityRatio > 0.75) return basePrice; // >75% available
-      if (availabilityRatio > 0.5) return Math.round(basePrice * 1.25 * 100) / 100; // 50-75%
-      if (availabilityRatio > 0.25) return Math.round(basePrice * 1.5 * 100) / 100; // 25-50%
-      return Math.round(basePrice * 2 * 100) / 100; // <25% available
+      if (availabilityRatio > 0.75) return basePrice;
+      if (availabilityRatio > 0.5) return Math.round(basePrice * 1.25 * 100) / 100;
+      if (availabilityRatio > 0.25) return Math.round(basePrice * 1.5 * 100) / 100;
+      return Math.round(basePrice * 2 * 100) / 100;
 
     default:
       return basePrice;
   }
 }
+
+// --- Helper: Count available SKUs ---
+const countAvailableSkus = (skus: SkuUnit[]): number =>
+  skus.filter(s => s.status === schemas.SkuStatus.Available).length;
 
 // --- 1. Domain Language (Helper Factories) ---
 const rule = (description: string, valid: (s: RentalItemState) => boolean): Invariant<RentalItemState> => ({
@@ -49,22 +53,23 @@ const rule = (description: string, valid: (s: RentalItemState) => boolean): Inva
 });
 
 const Item = {
-  mustBeAvailable: rule("Item must have available quantity", (s) => s.availableQuantity > 0),
+  mustBeAvailable: rule("Item must have available quantity", (s) => countAvailableSkus(s.skus) > 0),
   mustHaveRentals: rule("Item must have active rentals", (s) => s.activeRentals.length > 0),
   mustNotBeRetired: rule("Item must not be retired", (s) => s.status !== schemas.ItemStatus.Retired),
   mustHaveSufficientQuantity: (qty: number) =>
-    rule(`Must have at least ${qty} available`, (s) => s.availableQuantity >= qty),
+    rule(`Must have at least ${qty} available`, (s) => countAvailableSkus(s.skus) >= qty),
   mustHaveRental: (rentalId: string) =>
     rule(`Must have rental ${rentalId}`, (s) => s.activeRentals.some(r => r.rentalId === rentalId)),
   mustBe: (status: schemas.ItemStatus) => rule(`Item must be ${status}`, (s) => s.status === status),
 };
 
 // --- 2. Pure Domain Logic (State Transitions) ---
-const updateStatusBasedOnAvailability = (state: RentalItemState): schemas.ItemStatus => {
-  if (state.status === schemas.ItemStatus.Retired) return schemas.ItemStatus.Retired;
-  if (state.status === schemas.ItemStatus.Quarantined) return schemas.ItemStatus.Quarantined;
-  if (state.status === schemas.ItemStatus.Maintenance) return schemas.ItemStatus.Maintenance;
-  return state.availableQuantity > 0 ? schemas.ItemStatus.Available : schemas.ItemStatus.OutOfStock;
+const updateStatusBasedOnAvailability = (skus: SkuUnit[], currentStatus: schemas.ItemStatus): schemas.ItemStatus => {
+  if (currentStatus === schemas.ItemStatus.Retired) return schemas.ItemStatus.Retired;
+  if (currentStatus === schemas.ItemStatus.Quarantined) return schemas.ItemStatus.Quarantined;
+  if (currentStatus === schemas.ItemStatus.Maintenance) return schemas.ItemStatus.Maintenance;
+  const available = countAvailableSkus(skus);
+  return available > 0 ? schemas.ItemStatus.Available : schemas.ItemStatus.OutOfStock;
 };
 
 // --- 3. State Machine Definition ---
@@ -76,6 +81,7 @@ export const RentalItem = state("RentalItem", schemas.RentalItem)
     category: schemas.ItemCategory.Other,
     status: schemas.ItemStatus.Available,
     condition: schemas.ItemCondition.New,
+    skus: [],
     totalQuantity: 0,
     availableQuantity: 0,
     basePrice: 0,
@@ -87,33 +93,51 @@ export const RentalItem = state("RentalItem", schemas.RentalItem)
 
   // Define how Events mutate the State
   .patch({
-    ItemCreated: ({ data }) => ({
-      id: data.id,
-      name: data.name,
-      description: data.description,
-      serialNumber: data.serialNumber,
-      category: data.category,
-      status: schemas.ItemStatus.Available,
-      condition: data.initialCondition,
-      totalQuantity: data.initialQuantity,
-      availableQuantity: data.initialQuantity,
-      basePrice: data.basePrice,
-      currentPrice: data.basePrice, // Initial price equals base price at 100% availability
-      pricingStrategy: data.pricingStrategy,
-      imageUrl: data.imageUrl,
-      activeRentals: [],
-    }),
+    ItemCreated: ({ data }) => {
+      const skus: SkuUnit[] = data.initialSkus.map(sku => ({
+        sku,
+        status: schemas.SkuStatus.Available,
+        condition: data.initialCondition,
+      }));
+
+      return {
+        id: data.id,
+        name: data.name,
+        description: data.description,
+        serialNumber: data.serialNumber,
+        category: data.category,
+        status: schemas.ItemStatus.Available,
+        condition: data.initialCondition,
+        skus,
+        totalQuantity: skus.length,
+        availableQuantity: skus.length,
+        basePrice: data.basePrice,
+        currentPrice: data.basePrice,
+        pricingStrategy: data.pricingStrategy,
+        imageUrl: data.imageUrl,
+        activeRentals: [],
+      };
+    },
 
     ItemRented: ({ data }, prevState) => {
-      const newAvailable = prevState.availableQuantity - data.quantity;
+      // Mark the specific SKUs as rented
+      const rentedSkuSet = new Set(data.skus);
+      const updatedSkus = prevState.skus.map(s =>
+        rentedSkuSet.has(s.sku)
+          ? { ...s, status: schemas.SkuStatus.Rented }
+          : s
+      );
+
+      const newAvailable = countAvailableSkus(updatedSkus);
       const newPrice = calculateDynamicPrice(
         prevState.basePrice,
-        prevState.totalQuantity,
+        updatedSkus.length,
         newAvailable,
         prevState.pricingStrategy
       );
 
       return {
+        skus: updatedSkus,
         availableQuantity: newAvailable,
         currentPrice: newPrice,
         status: newAvailable > 0 ? schemas.ItemStatus.Available : schemas.ItemStatus.OutOfStock,
@@ -122,7 +146,7 @@ export const RentalItem = state("RentalItem", schemas.RentalItem)
           {
             rentalId: data.rentalId,
             renterId: data.renterId,
-            quantity: data.quantity,
+            skus: data.skus,
             expectedReturnDate: data.expectedReturnDate,
           },
         ],
@@ -130,23 +154,28 @@ export const RentalItem = state("RentalItem", schemas.RentalItem)
     },
 
     ItemReturned: ({ data }, prevState) => {
-      const rental = prevState.activeRentals.find(r => r.rentalId === data.rentalId);
-      if (!rental) return {};
+      // Mark the returned SKUs as available
+      const returnedSkuSet = new Set(data.skusReturned);
+      const updatedSkus = prevState.skus.map(s =>
+        returnedSkuSet.has(s.sku)
+          ? { ...s, status: schemas.SkuStatus.Available }
+          : s
+      );
 
-      const newAvailable = prevState.availableQuantity + data.quantityReturned;
+      const newAvailable = countAvailableSkus(updatedSkus);
       const newPrice = calculateDynamicPrice(
         prevState.basePrice,
-        prevState.totalQuantity,
+        updatedSkus.length,
         newAvailable,
         prevState.pricingStrategy
       );
 
-      // If item was quarantined during rental, keep it quarantined
       const nextStatus = prevState.status === schemas.ItemStatus.Quarantined
         ? schemas.ItemStatus.Quarantined
         : (newAvailable > 0 ? schemas.ItemStatus.Available : schemas.ItemStatus.OutOfStock);
 
       return {
+        skus: updatedSkus,
         availableQuantity: newAvailable,
         currentPrice: newPrice,
         status: nextStatus,
@@ -154,6 +183,52 @@ export const RentalItem = state("RentalItem", schemas.RentalItem)
       };
     },
 
+    SkusAdded: ({ data }, prevState) => {
+      const newSkus: SkuUnit[] = data.skus.map(sku => ({
+        sku,
+        status: schemas.SkuStatus.Available,
+        condition: prevState.condition,
+      }));
+
+      const allSkus = [...prevState.skus, ...newSkus];
+      const newAvailable = countAvailableSkus(allSkus);
+      const newPrice = calculateDynamicPrice(
+        prevState.basePrice,
+        allSkus.length,
+        newAvailable,
+        prevState.pricingStrategy
+      );
+
+      return {
+        skus: allSkus,
+        totalQuantity: allSkus.length,
+        availableQuantity: newAvailable,
+        currentPrice: newPrice,
+        status: updateStatusBasedOnAvailability(allSkus, prevState.status),
+      };
+    },
+
+    SkusRemoved: ({ data }, prevState) => {
+      const removedSet = new Set(data.skus);
+      const remainingSkus = prevState.skus.filter(s => !removedSet.has(s.sku));
+      const newAvailable = countAvailableSkus(remainingSkus);
+      const newPrice = calculateDynamicPrice(
+        prevState.basePrice,
+        remainingSkus.length,
+        newAvailable,
+        prevState.pricingStrategy
+      );
+
+      return {
+        skus: remainingSkus,
+        totalQuantity: remainingSkus.length,
+        availableQuantity: newAvailable,
+        currentPrice: newPrice,
+        status: updateStatusBasedOnAvailability(remainingSkus, prevState.status),
+      };
+    },
+
+    // Legacy handlers for backwards compatibility
     QuantityAdded: ({ data }, prevState) => {
       const newTotal = prevState.totalQuantity + data.amount;
       const newAvailable = prevState.availableQuantity + data.amount;
@@ -168,7 +243,7 @@ export const RentalItem = state("RentalItem", schemas.RentalItem)
         totalQuantity: newTotal,
         availableQuantity: newAvailable,
         currentPrice: newPrice,
-        status: updateStatusBasedOnAvailability({ ...prevState, availableQuantity: newAvailable }),
+        status: updateStatusBasedOnAvailability(prevState.skus, prevState.status),
       };
     },
 
@@ -186,7 +261,7 @@ export const RentalItem = state("RentalItem", schemas.RentalItem)
         totalQuantity: newTotal,
         availableQuantity: newAvailable,
         currentPrice: newPrice,
-        status: updateStatusBasedOnAvailability({ ...prevState, availableQuantity: newAvailable }),
+        status: updateStatusBasedOnAvailability(prevState.skus, prevState.status),
       };
     },
 
@@ -260,38 +335,64 @@ export const RentalItem = state("RentalItem", schemas.RentalItem)
       };
     },
 
-    ItemRetired: () => ({
-      status: schemas.ItemStatus.Retired,
-      availableQuantity: 0,
-    }),
+    ItemRetired: (_, prevState) => {
+      // Mark all SKUs as retired
+      const retiredSkus = prevState.skus.map(s => ({
+        ...s,
+        status: schemas.SkuStatus.Retired,
+      }));
+
+      return {
+        skus: retiredSkus,
+        status: schemas.ItemStatus.Retired,
+        availableQuantity: 0,
+      };
+    },
   })
 
   // --- Item Creation (Admin) ---
   .on("CreateItem", schemas.actions.CreateItem)
-  .emit((data) => [
-    "ItemCreated",
-    {
-      id: randomUUID(),
-      name: data.name,
-      description: data.description,
-      serialNumber: data.serialNumber,
-      category: data.category,
-      initialCondition: data.condition,
-      initialQuantity: data.initialQuantity,
-      basePrice: data.basePrice,
-      pricingStrategy: data.pricingStrategy,
-      imageUrl: data.imageUrl,
-    },
-  ])
+  .emit((data) => {
+    // Generate SKUs for each unit
+    const initialSkus: string[] = [];
+    for (let i = 1; i <= data.initialQuantity; i++) {
+      initialSkus.push(generateSku(data.serialNumber, i));
+    }
 
-  // --- Quantity Management (Admin) ---
-  .on("AddQuantity", schemas.actions.AddQuantity)
-  .given([Item.mustNotBeRetired])
-  .emit((data) => ["QuantityAdded", data])
+    return [
+      "ItemCreated",
+      {
+        id: randomUUID(),
+        name: data.name,
+        description: data.description,
+        serialNumber: data.serialNumber,
+        category: data.category,
+        initialCondition: data.condition,
+        initialSkus,
+        basePrice: data.basePrice,
+        pricingStrategy: data.pricingStrategy,
+        imageUrl: data.imageUrl,
+      },
+    ];
+  })
 
-  .on("RemoveQuantity", schemas.actions.RemoveQuantity)
+  // --- SKU Management (Admin) ---
+  .on("AddSkus", schemas.actions.AddSkus)
   .given([Item.mustNotBeRetired])
-  .emit((data) => ["QuantityRemoved", data])
+  .emit((data, snapshot) => {
+    // Generate new SKUs starting from the next available number
+    const existingCount = snapshot.state.skus.length;
+    const newSkus: string[] = [];
+    for (let i = 1; i <= data.quantity; i++) {
+      newSkus.push(generateSku(snapshot.state.serialNumber, existingCount + i));
+    }
+
+    return ["SkusAdded", { skus: newSkus, reason: data.reason }];
+  })
+
+  .on("RemoveSkus", schemas.actions.RemoveSkus)
+  .given([Item.mustNotBeRetired])
+  .emit((data) => ["SkusRemoved", { skus: data.skus, reason: data.reason }])
 
   // --- Pricing Management (Admin) ---
   .on("SetBasePrice", schemas.actions.SetBasePrice)
@@ -308,21 +409,41 @@ export const RentalItem = state("RentalItem", schemas.RentalItem)
   // --- Rental Lifecycle ---
   .on("RentItem", schemas.actions.RentItem)
   .given([Item.mustNotBeRetired, Item.mustBeAvailable])
-  .emit((data) => ["ItemRented", {
-    ...data,
-    quantity: data.quantity || 1,
-    rentalId: randomUUID(),
-    priceAtRental: 0,
-  }])
+  .emit((data, snapshot) => {
+    // If specific SKUs are provided, use them; otherwise auto-assign available ones
+    let skusToRent: string[];
+
+    if (data.skus && data.skus.length > 0) {
+      skusToRent = data.skus;
+    } else {
+      // Auto-assign available SKUs
+      const availableSkus = snapshot.state.skus
+        .filter((s: SkuUnit) => s.status === schemas.SkuStatus.Available)
+        .slice(0, data.quantity || 1)
+        .map((s: SkuUnit) => s.sku);
+      skusToRent = availableSkus;
+    }
+
+    return ["ItemRented", {
+      renterId: data.renterId,
+      skus: skusToRent,
+      rentalId: randomUUID(),
+      priceAtRental: snapshot.state.currentPrice,
+      expectedReturnDate: data.expectedReturnDate,
+    }];
+  })
 
   .on("ReturnItem", schemas.actions.ReturnItem)
   .given([Item.mustHaveRentals])
   .emit((data, snapshot) => {
-    const rental = snapshot.state.activeRentals.find((r: { rentalId: string; quantity: number }) => r.rentalId === data.rentalId);
+    const rental = snapshot.state.activeRentals.find(
+      (r: { rentalId: string; skus: string[] }) => r.rentalId === data.rentalId
+    );
+
     return ["ItemReturned", {
       rentalId: data.rentalId,
       returnDate: new Date().toISOString(),
-      quantityReturned: rental?.quantity || 1,
+      skusReturned: rental?.skus || [],
     }];
   })
 
