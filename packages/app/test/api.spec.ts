@@ -184,4 +184,78 @@ describe("API Router", () => {
       expectedReturnDate: new Date().toISOString(),
     })).rejects.toThrow("Item must not be retired");
   });
+
+  describe("getEventLog", () => {
+    it("should return paginated events", async () => {
+      // Create a few items to generate events
+      await caller.createItem({
+        name: "Event Log Item 1",
+        serialNumber: "SN-EL1",
+        condition: ItemCondition.New,
+        category: ItemCategory.Other,
+        initialQuantity: 2,
+        basePrice: 30,
+      });
+      await caller.createItem({
+        name: "Event Log Item 2",
+        serialNumber: "SN-EL2",
+        condition: ItemCondition.New,
+        category: ItemCategory.Tools,
+        initialQuantity: 1,
+        basePrice: 40,
+      });
+
+      await app.correlate();
+      await app.drain();
+
+      const result = await caller.getEventLog({ limit: 10, offset: 0 });
+
+      expect(result.events).toBeDefined();
+      expect(result.events.length).toBeGreaterThanOrEqual(2);
+      expect(result.total).toBeGreaterThanOrEqual(2);
+      expect(result.limit).toBe(10);
+      expect(result.offset).toBe(0);
+    });
+
+    it("should filter events by event name", async () => {
+      const createRes = await caller.createItem({
+        name: "Filter Test Item",
+        serialNumber: "SN-FT",
+        condition: ItemCondition.New,
+        category: ItemCategory.Other,
+        initialQuantity: 1,
+        basePrice: 25,
+      });
+
+      // Rent the item to generate an ItemRented event
+      await caller.rentItem({
+        itemId: createRes.id,
+        renterId: "filter-test-renter",
+        quantity: 1,
+        expectedReturnDate: new Date().toISOString(),
+      });
+
+      await app.correlate();
+      await app.drain();
+
+      // Filter for only ItemCreated events
+      const result = await caller.getEventLog({
+        names: ["ItemCreated"],
+        limit: 50,
+        offset: 0,
+      });
+
+      expect(result.events.every((e) => e.name === "ItemCreated")).toBe(true);
+    });
+
+    it("should return event types", async () => {
+      const eventTypes = await caller.getEventTypes();
+
+      expect(eventTypes).toContain("ItemCreated");
+      expect(eventTypes).toContain("ItemRented");
+      expect(eventTypes).toContain("ItemReturned");
+      expect(eventTypes).toContain("SkusAdded");
+      expect(eventTypes.length).toBeGreaterThan(10);
+    });
+  });
 });
