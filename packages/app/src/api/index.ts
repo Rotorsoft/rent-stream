@@ -254,6 +254,89 @@ export const router = t.router({
         .sort((a, b) => new Date(b.created).getTime() - new Date(a.created).getTime());
     }),
 
+  // Get filtered event log with pagination
+  getEventLog: t.procedure
+    .input(z.object({
+      names: z.array(z.string()).optional(),
+      fromDate: z.string().optional(),
+      toDate: z.string().optional(),
+      limit: z.number().int().min(1).max(100).default(50),
+      offset: z.number().int().min(0).default(0),
+    }).optional())
+    .query(async ({ input }) => {
+      const { names, fromDate, toDate, limit = 50, offset = 0 } = input ?? {};
+
+      // Query all events (the act framework has limited filtering, so we filter in-memory)
+      const allEvents = await app.query_array({ after: -1, limit: 1000 });
+
+      // Get item names from projection for context
+      const itemNames = new Map<string, string>();
+      for (const [stream, item] of projection.itemReadModel.entries()) {
+        itemNames.set(stream, item.name);
+      }
+
+      // Transform and sort events (most recent first)
+      let events = allEvents
+        .map((e) => ({
+          id: e.id,
+          stream: e.stream,
+          itemName: itemNames.get(e.stream) || e.stream,
+          name: e.name,
+          created: e.created?.toISOString() || new Date().toISOString(),
+          data: e.data || {},
+        }))
+        .sort((a, b) => new Date(b.created).getTime() - new Date(a.created).getTime());
+
+      // Apply filters
+      if (names && names.length > 0) {
+        events = events.filter((e) => names.includes(e.name));
+      }
+
+      if (fromDate) {
+        const from = new Date(fromDate);
+        events = events.filter((e) => new Date(e.created) >= from);
+      }
+
+      if (toDate) {
+        const to = new Date(toDate);
+        // Set to end of day
+        to.setHours(23, 59, 59, 999);
+        events = events.filter((e) => new Date(e.created) <= to);
+      }
+
+      const total = events.length;
+      const paginatedEvents = events.slice(offset, offset + limit);
+
+      return {
+        events: paginatedEvents,
+        total,
+        limit,
+        offset,
+        hasMore: offset + limit < total,
+      };
+    }),
+
+  // Get available event types
+  getEventTypes: t.procedure.query(async () => {
+    return [
+      "ItemCreated",
+      "ItemRented",
+      "ItemReturned",
+      "SkusAdded",
+      "SkusRemoved",
+      "QuantityAdded",
+      "QuantityRemoved",
+      "BasePriceSet",
+      "PricingStrategyChanged",
+      "PriceRecalculated",
+      "ItemInspected",
+      "DamageReported",
+      "MaintenanceScheduled",
+      "MaintenanceCompleted",
+      "ItemRetired",
+    ];
+  }),
+
   // --- Subscriptions ---
   onInventoryUpdate: t.procedure.subscription(() => {
     return observable<{ timestamp: number }>((emit) => {

@@ -11,3 +11,9 @@ Each entry documents: date, feature, decisions, files changed, tests, and concer
 - Decisions: Local filtering instead of API (no config needed), picker positioned inline next to item name input, category chips for quick filtering
 - Dev setup: Single dev server (dev-server.ts) integrates Vite middleware with Fastify - both API and frontend on port 3000 with HMR
 - Issues: None
+
+[2026-01-26] #5 feat: move admin event log to dedicated tab with filtering
+- Files: api/index.ts, Admin.tsx, EventLogTab.tsx, api.spec.ts
+- Changes: Added getEventLog and getEventTypes tRPC endpoints with filtering (event names, date range, pagination). Created EventLogTab component with filter UI. Added tab navigation to Admin page.
+- Decisions: Filter state in URL for shareable links, local filter state syncs on panel open to avoid cascading renders
+- Issues: None
