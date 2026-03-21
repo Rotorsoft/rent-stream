@@ -73,7 +73,7 @@ const updateStatusBasedOnAvailability = (skus: SkuUnit[], currentStatus: schemas
 };
 
 // --- 3. State Machine Definition ---
-export const RentalItem = state("RentalItem", schemas.RentalItem)
+export const RentalItem = state({ RentalItem: schemas.RentalItem })
   .init(() => ({
     id: "",
     name: "",
@@ -351,7 +351,7 @@ export const RentalItem = state("RentalItem", schemas.RentalItem)
   })
 
   // --- Item Creation (Admin) ---
-  .on("CreateItem", schemas.actions.CreateItem)
+  .on({ CreateItem: schemas.actions.CreateItem })
   .emit((data) => {
     // Generate SKUs for each unit
     const initialSkus: string[] = [];
@@ -377,7 +377,7 @@ export const RentalItem = state("RentalItem", schemas.RentalItem)
   })
 
   // --- SKU Management (Admin) ---
-  .on("AddSkus", schemas.actions.AddSkus)
+  .on({ AddSkus: schemas.actions.AddSkus })
   .given([Item.mustNotBeRetired])
   .emit((data, snapshot) => {
     // Generate new SKUs starting from the next available number
@@ -390,16 +390,16 @@ export const RentalItem = state("RentalItem", schemas.RentalItem)
     return ["SkusAdded", { skus: newSkus, reason: data.reason }];
   })
 
-  .on("RemoveSkus", schemas.actions.RemoveSkus)
+  .on({ RemoveSkus: schemas.actions.RemoveSkus })
   .given([Item.mustNotBeRetired])
   .emit((data) => ["SkusRemoved", { skus: data.skus, reason: data.reason }])
 
   // --- Pricing Management (Admin) ---
-  .on("SetBasePrice", schemas.actions.SetBasePrice)
+  .on({ SetBasePrice: schemas.actions.SetBasePrice })
   .given([Item.mustNotBeRetired])
   .emit((data) => ["BasePriceSet", { newPrice: data.newPrice, previousPrice: 0 }])
 
-  .on("SetPricingStrategy", schemas.actions.SetPricingStrategy)
+  .on({ SetPricingStrategy: schemas.actions.SetPricingStrategy })
   .given([Item.mustNotBeRetired])
   .emit((data) => ["PricingStrategyChanged", {
     newStrategy: data.strategy,
@@ -407,7 +407,7 @@ export const RentalItem = state("RentalItem", schemas.RentalItem)
   }])
 
   // --- Rental Lifecycle ---
-  .on("RentItem", schemas.actions.RentItem)
+  .on({ RentItem: schemas.actions.RentItem })
   .given([Item.mustNotBeRetired, Item.mustBeAvailable])
   .emit((data, snapshot) => {
     // If specific SKUs are provided, use them; otherwise auto-assign available ones
@@ -433,7 +433,7 @@ export const RentalItem = state("RentalItem", schemas.RentalItem)
     }];
   })
 
-  .on("ReturnItem", schemas.actions.ReturnItem)
+  .on({ ReturnItem: schemas.actions.ReturnItem })
   .given([Item.mustHaveRentals])
   .emit((data, snapshot) => {
     const rental = snapshot.state.activeRentals.find(
@@ -448,11 +448,11 @@ export const RentalItem = state("RentalItem", schemas.RentalItem)
   })
 
   // --- Quality Control & Issues ---
-  .on("InspectItem", schemas.actions.InspectItem)
+  .on({ InspectItem: schemas.actions.InspectItem })
   .given([Item.mustNotBeRetired])
   .emit((data) => ["ItemInspected", data])
 
-  .on("ReportDamage", schemas.actions.ReportDamage)
+  .on({ ReportDamage: schemas.actions.ReportDamage })
   .given([Item.mustNotBeRetired])
   .emit((data, _, { actor }) => [
     "DamageReported",
@@ -464,16 +464,16 @@ export const RentalItem = state("RentalItem", schemas.RentalItem)
   ])
 
   // --- Maintenance Cycle ---
-  .on("ScheduleMaintenance", schemas.actions.ScheduleMaintenance)
+  .on({ ScheduleMaintenance: schemas.actions.ScheduleMaintenance })
   .given([Item.mustNotBeRetired])
   .emit((data) => ["MaintenanceScheduled", data])
 
-  .on("CompleteMaintenance", schemas.actions.CompleteMaintenance)
+  .on({ CompleteMaintenance: schemas.actions.CompleteMaintenance })
   .given([Item.mustBe(schemas.ItemStatus.Maintenance)])
   .emit((data) => ["MaintenanceCompleted", data])
 
   // --- End of Life ---
-  .on("RetireItem", schemas.actions.RetireItem)
+  .on({ RetireItem: schemas.actions.RetireItem })
   .given([Item.mustNotBeRetired])
   .emit((data) => ["ItemRetired", data])
 

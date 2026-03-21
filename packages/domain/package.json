@@ -20,11 +20,11 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@rotorsoft/act": "^0.6.29",
+    "@rotorsoft/act": "^0.23.2",
     "zod": "catalog:"
   },
   "devDependencies": {
     "typescript": "^5.9.3",
-    "vitest": "^4.0.17"
+    "vitest": "^4.1.0"
   }
 }

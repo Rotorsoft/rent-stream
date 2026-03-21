@@ -10,7 +10,7 @@ import {
 } from "../src/index.js";
 
 describe("RentalItem", () => {
-  const app = act().with(RentalItem).build();
+  const app = act().withState(RentalItem).build();
   const actor = { id: "user-1", name: "Alice" };
 
   // Helper to create items with required fields

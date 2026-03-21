@@ -3,7 +3,7 @@ import { act } from "@rotorsoft/act";
 import { EventEmitter } from "node:events";
 import * as projection from "./rent-item-projection.js";
 
-export const builder = act().with(RentalItem);
+export const builder = act().withState(RentalItem);
 export const ee = new EventEmitter();
 
 export const app = builder
